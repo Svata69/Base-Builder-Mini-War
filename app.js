@@ -318,7 +318,7 @@ function updateBuildingStatsUI() {
     statsList.innerHTML = html;
 }
 
-// HYBRIDNÍ PŘEBYTEČNÁ DETEKCE DETEKOVANÁ PRO ROBLOX (KRUH + ČTVEREC S TOLERANCÍ)
+// DETEKCE S VYHOVUJÍCÍ POLOVINOU HRANICE (HALF-TILE THRESHOLD)
 function recalculateStatueBoosts() {
     const statues = placedBuildings.filter(b => b.userData.category === 'Statue');
     
@@ -348,19 +348,15 @@ function recalculateStatueBoosts() {
                 const stX = statue.position.x;
                 const stZ = statue.position.z;
 
-                // 1. Spočítáme nejkratší vzdálenost k hraničnímu obdélníku budovy
+                // Spočítáme vzdálenost od středu sochy k nejbližší hraně budovy
                 const deltaX = Math.max(0, (bMinX - stX), (stX - bMaxX));
                 const deltaZ = Math.max(0, (bMinZ - stZ), (stZ - bMaxZ));
+                const distanceToEdge = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
 
-                // 2. Vzdálenost vzdušná (Kruh) i osová (Čtverec / Chebyshev)
-                const euclideanDist = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-                const chebyshevDist = Math.max(deltaX, deltaZ);
+                // Kontrola k polovině hraniční dlaždice dosahu
+                const halfTileBoundary = stData.radius - (tileSize / 2);
 
-                // Poloměr rozšířený o toleranci mřížky (půlka dlaždice = 2 jednotky)
-                const allowedRadius = stData.radius + 2.0;
-
-                // Pokud vyhovuje buď kruhovému nebo čtvercovému mřížkovému dosahu
-                if (euclideanDist <= allowedRadius || chebyshevDist <= allowedRadius) {
+                if (distanceToEdge <= halfTileBoundary) {
                     if (statueName.includes('gold')) hasGold = true;
                     if (statueName.includes('silver')) hasSilver = true;
                     if (statueName.includes('manager')) hasManager = true;
