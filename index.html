@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plánovač Základny (2D Grid Planner)</title>
-    <!-- Propojení na externí CSS soubor -->
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -59,10 +58,10 @@
                             <button class="tab-btn active" onclick="switchUpgradeTab(this, 'gamma-v1')">Základní</button>
                             <button class="tab-btn" onclick="switchUpgradeTab(this, 'gamma-v2')">Upgraded</button>
                         </div>
-                        <div id="gamma-v1">
+                        <div id="gamma-v1" class="tab-content">
                             <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Gamma Ray Generator', 16, 16, '#27ae60', '#ffffff', 0, 'Factory', this)">Gamma Ray Generator (16x16)</button>
                         </div>
-                        <div id="gamma-v2" style="display: none;">
+                        <div id="gamma-v2" class="tab-content" style="display: none;">
                             <button class="btn" style="background-color: #1e8449;" onclick="selectBuilding('Upgraded Gamma Ray Generator', 17, 16, '#1e8449', '#ffffff', 0, 'Factory', this)">Upgraded Gamma Ray Gen. (17x16)</button>
                         </div>
                     </div>
@@ -109,13 +108,13 @@
                             <button class="tab-btn" onclick="switchUpgradeTab(this, 'ws-v2')">Upgraded</button>
                             <button class="tab-btn" onclick="switchUpgradeTab(this, 'ws-v3')">Titan</button>
                         </div>
-                        <div id="ws-v1">
+                        <div id="ws-v1" class="tab-content">
                             <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Workshop', 4, 4, '#f39c12', '#ffffff', 0, 'Decor', this)">Workshop (4x4)</button>
                         </div>
-                        <div id="ws-v2" style="display: none;">
+                        <div id="ws-v2" class="tab-content" style="display: none;">
                             <button class="btn" style="background-color: #e67e22;" onclick="selectBuilding('Upgraded Workshop', 10, 13, '#e67e22', '#ffffff', 0, 'Decor', this)">Upgraded Workshop (10x13)</button>
                         </div>
-                        <div id="ws-v3" style="display: none;">
+                        <div id="ws-v3" class="tab-content" style="display: none;">
                             <button class="btn" style="background-color: #d35400;" onclick="selectBuilding('Titan Workshop', 12, 12, '#d35400', '#ffffff', 0, 'Decor', this)">Titan Workshop (12x12)</button>
                         </div>
                     </div>
