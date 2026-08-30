@@ -98,6 +98,15 @@ planeGeo.rotateX(-Math.PI / 2);
 const groundPlane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ visible: false }));
 scene.add(groundPlane);
 
+// Pomocná funkce pro kontrolu/úpravu poloměru vojenských soch
+function getEffectiveRadius(name, defaultRadius) {
+    const lower = name.toLowerCase();
+    if (lower.includes('spider') || lower.includes('tank') || lower.includes('helicopter') || lower.includes('soldier')) {
+        return 16;
+    }
+    return defaultRadius || 0;
+}
+
 // Textura na horní straně budovy
 function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
     const canvas = document.createElement('canvas');
@@ -235,7 +244,7 @@ function selectBuilding(name, w, d, colorStr, textColor, radius, category, btn) 
     currentName = name;
     baseWidth = w;
     baseDepth = d;
-    currentRadius = radius || 0;
+    currentRadius = getEffectiveRadius(name, radius);
     currentCategory = category || 'Houses';
     isRotated = false;
     currentColorStr = colorStr;
@@ -264,6 +273,8 @@ window.addEventListener('keydown', (e) => {
 function createBuildingMesh(name, w, d, colorStr, textColor, radius, category, boosts = null) {
     const group = new THREE.Group();
     const geo = new THREE.BoxGeometry(w, 1.2, d);
+    const effectiveRadius = getEffectiveRadius(name, radius);
+
     const topTexture = createTopTexture(name, colorStr, textColor, boosts);
 
     const sideMat = new THREE.MeshBasicMaterial({ color: colorStr });
@@ -275,8 +286,8 @@ function createBuildingMesh(name, w, d, colorStr, textColor, radius, category, b
     buildingMesh.position.set(0, 0.6, 0);
     group.add(buildingMesh);
 
-    if (radius > 0) {
-        const ring = createRadiusRing(radius);
+    if (effectiveRadius > 0) {
+        const ring = createRadiusRing(effectiveRadius);
         if (ring) group.add(ring);
     }
 
@@ -284,7 +295,7 @@ function createBuildingMesh(name, w, d, colorStr, textColor, radius, category, b
         name: name,
         width: w, 
         depth: d, 
-        radius: radius,
+        radius: effectiveRadius,
         category: category,
         colorStr: colorStr,
         textColor: textColor,
@@ -343,13 +354,15 @@ function recalculateStatueBoosts() {
                 const stData = statue.userData;
                 const statueName = stData.name.toLowerCase();
 
+                const effectiveStatueRadius = getEffectiveRadius(stData.name, stData.radius);
+
                 const stX = statue.position.x;
                 const stZ = statue.position.z;
 
                 const tileDistX = Math.abs(bX - stX) / tileSize;
                 const tileDistZ = Math.abs(bZ - stZ) / tileSize;
 
-                const maxTileRadius = Math.round(stData.radius / tileSize);
+                const maxTileRadius = Math.round(effectiveStatueRadius / tileSize);
                 
                 const bHalfTilesW = (data.width / 2) / tileSize;
                 const bHalfTilesD = (data.depth / 2) / tileSize;
@@ -357,7 +370,7 @@ function recalculateStatueBoosts() {
                 if (tileDistX <= maxTileRadius + bHalfTilesW && tileDistZ <= maxTileRadius + bHalfTilesD) {
                     const exactGridDist = Math.sqrt(Math.pow(bX - stX, 2) + Math.pow(bZ - stZ, 2));
                     
-                    if (exactGridDist <= stData.radius + (tileSize * 0.25)) {
+                    if (exactGridDist <= effectiveStatueRadius + (tileSize * 0.25)) {
                         if (statueName.includes('gold')) hasGold = true;
                         if (statueName.includes('silver')) hasSilver = true;
                         if (statueName.includes('manager')) hasManager = true;
