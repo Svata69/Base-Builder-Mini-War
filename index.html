@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plánovač základny</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/three@0.143.0/build/three.min.js"></script>
+</head>
+<body>
+
+    <!-- Úvodní vysvětlovací okno -->
+    <div id="welcome-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Vítejte v Plánovači základny! 🏗️</h2>
+            <p>Tento nástroj vám umožní navrhnout a naplánovat rozvržení vaší základny v 3D prostředí ještě předtím, než začnete stavět ve hře.</p>
+            
+            <h3>Jak to funguje:</h3>
+            <ul>
+                <li><b>Výběr budov:</b> V pravém menu vyberte budovu a kliknutím do mřížky ji položte.</li>
+                <li><b>Otáčení budov:</b> Stiskněte klávesu <kbd>R</kbd> pro otočení budovy o 90°.</li>
+                <li><b>Bonusy soch:</b> Umístěním soch vedle budov automaticky vidíte započítané bonusy.</li>
+                <li><b>Mačkání a mazání:</b> Kliknutím pravým tlačítkem na budovu ji smažete. Pravým tlačítkem nebo kolečkem lze posouvat a přibližovat kameru.</li>
+                <li><b>Ukládání:</b> Všechny změny se automaticky ukládají do zvoleného profilu (Base 1, 2, 3).</li>
+            </ul>
+
+            <button id="close-modal-btn" class="modal-btn">Rozumím, jdeme stavět!</button>
+        </div>
+    </div>
+
+    <div id="ui">
+        <h3>Vyber budovu</h3>
+        
+        <div id="slots-container">
+            <div class="slot-title">Uložené Základny</div>
+            <div class="slot-buttons">
+                <button class="slot-btn active" onclick="switchSlot(1)">Base 1</button>
+                <button class="slot-btn" onclick="switchSlot(2)">Base 2</button>
+                <button class="slot-btn" onclick="switchSlot(3)">Base 3</button>
+            </div>
+            <button class="clear-btn" onclick="clearCurrentSlot()">Vymazat tuto základnu</button>
+        </div>
+
+        <input type="text" id="search-box" placeholder="Hledat budovu..." oninput="filterBuildings()">
+        
+        <div id="placed-stats">
+            <h4>Postavené budovy</h4>
+            <div id="stats-list"><i>Žádné budovy</i></div>
+        </div>
+
+        <div class="building-section">
+            <div class="section-title">Houses</div>
+            <button class="btn active" style="background: #cf4d3c;" onclick="selectBuilding('The Manor', 8, 8, '#cf4d3c', '#ffffff', 0, 'Houses', this)">The Manor (8x8)</button>
+        </div>
+
+        <div class="building-section">
+            <div class="section-title">Military</div>
+            <button class="btn" style="background: #455a64;" onclick="selectBuilding('Air Fortress', 13, 20, '#455a64', '#ffffff', 0, 'Military', this)">Air Fortress (13x20)</button>
+            <button class="btn" style="background: #b71c1c;" onclick="selectBuilding('Military Cloner v2', 10, 13, '#b71c1c', '#ffffff', 0, 'Military', this)">Military Cloner v2 (10x13)</button>
+            <button class="btn" style="background: #1b5e20;" onclick="selectBuilding('Alien Hive', 18, 18, '#1b5e20', '#aeea00', 0, 'Military', this)">Alien Hive (18x18)</button>
+            <button class="btn" style="background: #0288d1;" onclick="selectBuilding('Alien Starport', 10, 10, '#0288d1', '#ffffff', 0, 'Military', this)">Alien Starport (10x10)</button>
+            <button class="btn" style="background: #0097a7;" onclick="selectBuilding('Plasma Hangar', 16, 16, '#0097a7', '#ffffff', 0, 'Military', this)">Plasma Hangar (16x16)</button>
+            <button class="btn" style="background: #37474f;" onclick="selectBuilding('Nuclear Vault', 11, 11, '#37474f', '#ffeb3b', 0, 'Military', this)">Nuclear Vault (11x11)</button>
+        </div>
+
+        <div class="building-section">
+            <div class="section-title">Statue</div>
+            <button class="btn" style="background: #78909c;" onclick="selectBuilding('Soldier Statue', 2, 2, '#78909c', '#ffffff', 18, 'Statue', this)">Soldier Statue (2x2) [R:18]</button>
+            <button class="btn" style="background: #a6a6a6;" onclick="selectBuilding('Silver Statue', 4, 4, '#a6a6a6', '#ffffff', 24, 'Statue', this)">Silver Statue (4x4) [R:24]</button>
+            <button class="btn" style="background: #546e7a;" onclick="selectBuilding('Spider Mech Statue', 4, 4, '#546e7a', '#ffffff', 24, 'Statue', this)">Spider Mech Statue (4x4) [R:24]</button>
+            <button class="btn" style="background: #fbc02d;" onclick="selectBuilding('Gold Statue', 4, 4, '#fbc02d', '#000000', 24, 'Statue', this)">Gold Statue (4x4) [R:24]</button>
+        </div>
+
+        <div class="building-section">
+            <div class="section-title">Decor</div>
+            <button class="btn" style="background: #4a148c;" onclick="selectBuilding('Command Center', 12, 12, '#4a148c', '#ffffff', 0, 'Decor', this)">Command Center (12x12)</button>
+            <button class="btn" style="background: #2e7d32;" onclick="selectBuilding('Clun Hub', 10, 8, '#2e7d32', '#ffffff', 0, 'Decor', this)">Clun Hub (10x8)</button>
+            <button class="btn" style="background: #1565c0;" onclick="selectBuilding('General Residence', 13, 17, '#1565c0', '#ffffff', 0, 'Decor', this)">General Residence (13x17)</button>
+            <button class="btn" style="background: #6a1b9a;" onclick="selectBuilding('Upgraded Workshop', 10, 13, '#6a1b9a', '#ffffff', 0, 'Decor', this)">Upgraded Workshop (10x13)</button>
+            <button class="btn" style="background: #ff6f00;" onclick="selectBuilding('Titan Assembly', 16, 15, '#ff6f00', '#ffffff', 0, 'Decor', this)">Titan Assembly (16x15)</button>
+            <button class="btn" style="background: #00838f;" onclick="selectBuilding('Shopping Center', 11, 11, '#00838f', '#ffffff', 0, 'Decor', this)">Shopping Center (11x11)</button>
+            <button class="btn" style="background: #e65100;" onclick="selectBuilding('Crafting', 8, 9, '#e65100', '#ffffff', 0, 'Decor', this)">Crafting (8x9)</button>
+        </div>
+
+        <div class="building-section">
+            <div class="section-title">Factory</div>
+            <button class="btn" style="background: #8b3a99;" onclick="selectBuilding('Gem Deep Mine', 15, 15, '#8b3a99', '#ffff00', 0, 'Factory', this)">Deep Gem Mine (15x15)</button>
+            <button class="btn" style="background: #ab47bc;" onclick="selectBuilding('Gem Mine', 11, 10, '#ab47bc', '#ffff00', 0, 'Factory', this)">Gem Mine (11x10)</button>
+            <button class="btn" style="background: #990000;" onclick="selectBuilding('Clone Facility', 11, 10, '#990000', '#ffffff', 0, 'Factory', this)">Clone Facility (11x10)</button>
+            <button class="btn" style="background: #26a69a;" onclick="selectBuilding('Upgraded Gamma Ray Generator', 17, 16, '#26a69a', '#ffffff', 0, 'Factory', this)">Upgraded Gamma Ray (17x16)</button>
+        </div>
+    </div>
+
+    <div id="info">
+        <b>Ovládání:</b><br>
+        • <kbd>R</kbd>: Otočit budovu o 90°<br>
+        • Levé tlačítko: Položit stavbu<br>
+        • Pravé tlačítko (klik): Smazat stavbu<br>
+        • Pravé tlačítko / Kolečko (tažení): Posun kamery<br>
+        • Kolečko (točení mimo UI): Přiblížit / Oddálit
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
