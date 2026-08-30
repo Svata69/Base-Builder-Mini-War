@@ -318,7 +318,7 @@ function updateBuildingStatsUI() {
     statsList.innerHTML = html;
 }
 
-// ROBLOX AABB EDGE-TO-EDGE DETEKCE (MĚŘENÍ OD KRAJE SOCHY KE KRAJI BUDOVY)
+// HYBRIDNÍ PŘEBYTEČNÁ DETEKCE DETEKOVANÁ PRO ROBLOX (KRUH + ČTVEREC S TOLERANCÍ)
 function recalculateStatueBoosts() {
     const statues = placedBuildings.filter(b => b.userData.category === 'Statue');
     
@@ -336,7 +336,6 @@ function recalculateStatueBoosts() {
             let hasTank = false;
             let hasHelicopter = false;
 
-            // Hranice budovy
             const bMinX = building.position.x - data.width / 2;
             const bMaxX = building.position.x + data.width / 2;
             const bMinZ = building.position.z - data.depth / 2;
@@ -346,23 +345,22 @@ function recalculateStatueBoosts() {
                 const stData = statue.userData;
                 const statueName = stData.name.toLowerCase();
 
-                // Hranice sochy (socha také zabírá plochu na gridu)
-                const stW = stData.width || 4;
-                const stD = stData.depth || 4;
-                const stMinX = statue.position.x - stW / 2;
-                const stMaxX = statue.position.x + stW / 2;
-                const stMinZ = statue.position.z - stD / 2;
-                const stMaxZ = statue.position.z + stD / 2;
+                const stX = statue.position.x;
+                const stZ = statue.position.z;
 
-                // Vzdálenost mezi hranami sochy a hranami budovy na osách X a Z
-                const deltaX = Math.max(0, stMinX - bMaxX, bMinX - stMaxX);
-                const deltaZ = Math.max(0, stMinZ - bMaxZ, bMinZ - stMaxZ);
+                // 1. Spočítáme nejkratší vzdálenost k hraničnímu obdélníku budovy
+                const deltaX = Math.max(0, (bMinX - stX), (stX - bMaxX));
+                const deltaZ = Math.max(0, (bMinZ - stZ), (stZ - bMaxZ));
 
-                // Nejkratší vzdušná vzdálenost mezi nejbližšími okrajovými body obou objektů
-                const edgeToEdgeDistance = Math.sqrt((deltaX * deltaX) + (deltaZ * deltaZ));
+                // 2. Vzdálenost vzdušná (Kruh) i osová (Čtverec / Chebyshev)
+                const euclideanDist = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+                const chebyshevDist = Math.max(deltaX, deltaZ);
 
-                // Přidáváme toleranci 0.5 jednotky kvůli plovoucí řádové čárce na mřížce
-                if (edgeToEdgeDistance <= stData.radius + 0.5) {
+                // Poloměr rozšířený o toleranci mřížky (půlka dlaždice = 2 jednotky)
+                const allowedRadius = stData.radius + 2.0;
+
+                // Pokud vyhovuje buď kruhovému nebo čtvercovému mřížkovému dosahu
+                if (euclideanDist <= allowedRadius || chebyshevDist <= allowedRadius) {
                     if (statueName.includes('gold')) hasGold = true;
                     if (statueName.includes('silver')) hasSilver = true;
                     if (statueName.includes('manager')) hasManager = true;
