@@ -201,7 +201,7 @@ function createRadiusRing(radius) {
     return line;
 }
 
-let currentName = 'The Manor';
+let currentName = null;
 let baseWidth = 8;
 let baseDepth = 8;
 let currentRadius = 0;
@@ -210,7 +210,8 @@ let isRotated = false;
 
 let currentColorStr = '#cf4d3c';
 let currentTextColor = '#ffffff';
-let canPlace = true;
+let canPlace = false;
+let isBuilding = false; // Stav pro držení tlačítka stavení
 
 const placedBuildings = [];
 
@@ -218,6 +219,7 @@ function getCurrentWidth() { return isRotated ? baseDepth : baseWidth; }
 function getCurrentDepth() { return isRotated ? baseWidth : baseDepth; }
 
 let previewGroup = new THREE.Group();
+previewGroup.visible = false;
 scene.add(previewGroup);
 
 let previewMat = new THREE.MeshBasicMaterial({ color: currentColorStr, transparent: true, opacity: 0.5 });
@@ -225,8 +227,21 @@ let previewMesh = new THREE.Mesh(new THREE.BoxGeometry(getCurrentWidth(), 1, get
 previewGroup.add(previewMesh);
 let previewRadiusRing = null;
 
+function deselectBuilding() {
+    currentName = null;
+    previewGroup.visible = false;
+    isBuilding = false;
+    document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+}
+
 function updatePreviewMesh() {
     previewGroup.clear();
+    if (!currentName) {
+        previewGroup.visible = false;
+        return;
+    }
+    previewGroup.visible = true;
+
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
@@ -259,15 +274,30 @@ function selectBuilding(name, w, d, colorStr, textColor, radius, category, btn) 
 }
 
 function rotateBuilding() {
+    if (!currentName) return;
     isRotated = !isRotated;
     updatePreviewMesh();
     updatePreviewPosition();
 }
 
+// OVLÁDÁNÍ KLÁVESNICÍ (WASD + Escape + R)
+const keysPressed = {};
+
 window.addEventListener('keydown', (e) => {
-    if ((e.key === 'r' || e.key === 'R') && document.activeElement.id !== 'search-box') {
+    if (document.activeElement.id === 'search-box') return;
+
+    keysPressed[e.key.toLowerCase()] = true;
+
+    if (e.key === 'r' || e.key === 'R') {
         rotateBuilding();
     }
+    if (e.key === 'Escape') {
+        deselectBuilding();
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    keysPressed[e.key.toLowerCase()] = false;
 });
 
 function createBuildingMesh(name, w, d, colorStr, textColor, radius, category, boosts = null) {
@@ -433,6 +463,26 @@ function checkCollision(posX, posZ, w, d) {
     return false;
 }
 
+function placeSingleBuilding() {
+    if (!canPlace || !currentName) return;
+
+    const curW = getCurrentWidth();
+    const curD = getCurrentDepth();
+
+    const buildingGroup = createBuildingMesh(
+        currentName, curW, curD, currentColorStr, 
+        currentTextColor, currentRadius, currentCategory
+    );
+    buildingGroup.position.copy(previewGroup.position);
+    scene.add(buildingGroup);
+    placedBuildings.push(buildingGroup);
+
+    recalculateStatueBoosts();
+
+    canPlace = false;
+    previewMat.color.setStyle('#ff0000');
+}
+
 function saveCurrentSlot() {
     const saveData = placedBuildings.map(b => ({
         name: b.userData.name,
@@ -498,6 +548,12 @@ let startMouseY = 0;
 let hasMovedMouse = false;
 
 function updatePreviewPosition() {
+    if (!currentName) {
+        previewGroup.visible = false;
+        return;
+    }
+    previewGroup.visible = true;
+
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObject(groundPlane);
 
@@ -524,6 +580,11 @@ function updatePreviewPosition() {
         } else {
             previewMat.color.setStyle(currentColorStr);
             canPlace = true;
+
+            // Pokládání při tažení myší (Drag-to-build)
+            if (isBuilding) {
+                placeSingleBuilding();
+            }
         }
     }
 }
@@ -551,6 +612,13 @@ window.addEventListener('pointermove', (event) => {
 window.addEventListener('pointerdown', (event) => {
     if (event.clientX > window.innerWidth - 300 && event.clientY < 600) return;
 
+    if (event.button === 0) {
+        isBuilding = true;
+        if (canPlace && currentName) {
+            placeSingleBuilding();
+        }
+    }
+
     if (event.button === 2 || event.button === 1) {
         isPanning = true;
         startMouseX = event.clientX;
@@ -562,38 +630,27 @@ window.addEventListener('pointerdown', (event) => {
 window.addEventListener('pointerup', (event) => {
     if (event.clientX > window.innerWidth - 300 && event.clientY < 600) return;
 
-    raycaster.setFromCamera(mouse, camera);
-
-    if (event.button === 2 && !hasMovedMouse) {
-        const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
-        const intersects = raycaster.intersectObjects(buildingMeshes);
-        if (intersects.length > 0) {
-            const hitMesh = intersects[0].object;
-            const buildingGroup = hitMesh.parent;
-            scene.remove(buildingGroup);
-            placedBuildings.splice(placedBuildings.indexOf(buildingGroup), 1);
-            recalculateStatueBoosts();
-        }
+    if (event.button === 0) {
+        isBuilding = false;
     }
 
-    if (event.button === 0 && canPlace) {
-        const intersects = raycaster.intersectObject(groundPlane);
-        if (intersects.length > 0) {
-            const curW = getCurrentWidth();
-            const curD = getCurrentDepth();
+    raycaster.setFromCamera(mouse, camera);
 
-            const buildingGroup = createBuildingMesh(
-                currentName, curW, curD, currentColorStr, 
-                currentTextColor, currentRadius, currentCategory
-            );
-            buildingGroup.position.copy(previewGroup.position);
-            scene.add(buildingGroup);
-            placedBuildings.push(buildingGroup);
-
-            recalculateStatueBoosts();
-
-            canPlace = false;
-            previewMat.color.setStyle('#ff0000');
+    if (event.button === 2) {
+        if (!hasMovedMouse) {
+            if (currentName) {
+                deselectBuilding();
+            } else {
+                const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
+                const intersects = raycaster.intersectObjects(buildingMeshes);
+                if (intersects.length > 0) {
+                    const hitMesh = intersects[0].object;
+                    const buildingGroup = hitMesh.parent;
+                    scene.remove(buildingGroup);
+                    placedBuildings.splice(placedBuildings.indexOf(buildingGroup), 1);
+                    recalculateStatueBoosts();
+                }
+            }
         }
     }
 
@@ -623,8 +680,27 @@ window.addEventListener('resize', () => {
 
 loadCurrentSlot();
 
+// POHYB KAMERY POMOCÍ WASD
+function updateCameraMovement() {
+    const moveSpeed = 1.5 / camera.zoom;
+
+    if (keysPressed['w'] || keysPressed['arrowup']) {
+        camera.position.z -= moveSpeed;
+    }
+    if (keysPressed['s'] || keysPressed['arrowdown']) {
+        camera.position.z += moveSpeed;
+    }
+    if (keysPressed['a'] || keysPressed['arrowleft']) {
+        camera.position.x -= moveSpeed;
+    }
+    if (keysPressed['d'] || keysPressed['arrowright']) {
+        camera.position.x += moveSpeed;
+    }
+}
+
 function animate() {
     requestAnimationFrame(animate);
+    updateCameraMovement();
     renderer.render(scene, camera);
 }
 animate();
