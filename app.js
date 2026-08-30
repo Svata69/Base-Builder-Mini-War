@@ -173,7 +173,7 @@ function createRadiusRing(radius) {
     for (let i = 0; i <= segments; i++) {
         const theta = (i / segments) * Math.PI * 2;
         positions[i * 3] = Math.cos(theta) * radius;
-        positions[i * 3 + 1] = 2.0; // Mírně zvednuto
+        positions[i * 3 + 1] = 2.0;
         positions[i * 3 + 2] = Math.sin(theta) * radius;
     }
 
@@ -183,12 +183,12 @@ function createRadiusRing(radius) {
         color: 0xffff00, 
         transparent: true, 
         opacity: 0.9,
-        depthTest: false, // Klíčové: ignoruje hloubkový test
+        depthTest: false,
         depthWrite: false
     });
 
     const line = new THREE.LineLoop(geometry, material);
-    line.renderOrder = 9999; // Vykreslí se navrchu
+    line.renderOrder = 9999;
     return line;
 }
 
@@ -318,7 +318,7 @@ function updateBuildingStatsUI() {
     statsList.innerHTML = html;
 }
 
-// PŘÍSNÁ PODMÍNKA ZE HRY: STŘED BUDOVY MUSÍ BÝT UVNITŘ KRUHU
+// DETEKCE PŘEKRYVU KRUHU SOCHY A BOXU BUDOVY (KOLIZE AABB S KRUHEM)
 function recalculateStatueBoosts() {
     const statues = placedBuildings.filter(b => b.userData.category === 'Statue');
     
@@ -336,15 +336,30 @@ function recalculateStatueBoosts() {
             let hasTank = false;
             let hasHelicopter = false;
 
+            // Hranice budovy
+            const bMinX = building.position.x - data.width / 2;
+            const bMaxX = building.position.x + data.width / 2;
+            const bMinZ = building.position.z - data.depth / 2;
+            const bMaxZ = building.position.z + data.depth / 2;
+
             statues.forEach(statue => {
                 const stData = statue.userData;
                 const statueName = stData.name.toLowerCase();
                 
-                // Přesná vzdálenost mezi středem sochy a středem budovy
-                const centerDist = building.position.distanceTo(statue.position);
-                
-                // Střed budovy MUSÍ být uvnitř poloměru sochy
-                if (centerDist <= stData.radius) {
+                const stX = statue.position.x;
+                const stZ = statue.position.z;
+
+                // Najdeme nejbližší bod na obvodu/uvnitř budovy vzhledem ke středu sochy
+                const closestX = Math.max(bMinX, Math.min(stX, bMaxX));
+                const closestZ = Math.max(bMinZ, Math.min(stZ, bMaxZ));
+
+                // Vzdálenost středu sochy k tomuto nejbližšímu bodu budovy
+                const distX = stX - closestX;
+                const distZ = stZ - closestZ;
+                const distanceSq = (distX * distX) + (distZ * distZ);
+
+                // Pokud je nejbližší bod v dosahu poloměru sochy, budova dostává boost
+                if (distanceSq <= (stData.radius * stData.radius)) {
                     if (statueName.includes('gold')) hasGold = true;
                     if (statueName.includes('silver')) hasSilver = true;
                     if (statueName.includes('manager')) hasManager = true;
