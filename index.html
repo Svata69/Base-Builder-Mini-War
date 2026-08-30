@@ -69,7 +69,24 @@
                     <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Blackhole Generator', 12, 12, '#27ae60', '#ffffff', 0, 'Factory', this)">Blackhole Generator (12x12)</button>
                     <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Quantum Core Generator', 10, 10, '#27ae60', '#ffffff', 0, 'Factory', this)">Quantum Core Generator (10x10)</button>
                     <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Antimatter Reactor', 10, 10, '#27ae60', '#ffffff', 0, 'Factory', this)">Antimatter Reactor (10x10)</button>
-                    <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Clone Facility', 10, 10, '#27ae60', '#ffffff', 0, 'Factory', this)">Clone Facility (10x10)</button>
+                    
+                    <!-- PŘEPÍNATELNÝ BLOK: CLONE FACILITY -->
+                    <div class="upgrade-container">
+                        <div class="upgrade-tabs">
+                            <button class="tab-btn active" onclick="switchUpgradeTab(this, 'clone-v1')">Základní</button>
+                            <button class="tab-btn" onclick="switchUpgradeTab(this, 'clone-v2')">v2</button>
+                            <button class="tab-btn" onclick="switchUpgradeTab(this, 'clone-v3')">Prototype</button>
+                        </div>
+                        <div id="clone-v1" class="tab-content">
+                            <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Clone Facility', 10, 10, '#27ae60', '#ffffff', 0, 'Factory', this)">Clone Facility (10x10)</button>
+                        </div>
+                        <div id="clone-v2" class="tab-content" style="display: none;">
+                            <button class="btn" style="background-color: #1e8449;" onclick="selectBuilding('Clone Facility v2', 10, 10, '#1e8449', '#ffffff', 0, 'Factory', this)">Clone Facility v2 (10x10)</button>
+                        </div>
+                        <div id="clone-v3" class="tab-content" style="display: none;">
+                            <button class="btn" style="background-color: #145a32;" onclick="selectBuilding('Prototype Facility', 10, 10, '#145a32', '#ffffff', 0, 'Factory', this)">Prototype Facility (10x10)</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- MILITARY -->
@@ -88,8 +105,8 @@
                 <!-- STATUES -->
                 <div class="building-section">
                     <h3>Statues</h3>
-                    <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Gold Statue', 1, 1, '#8e44ad', '#ffffff', 20, 'Statue', this)">Gold Statue (R20)</button>
-                    <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Silver Statue', 1, 1, '#8e44ad', '#ffffff', 15, 'Statue', this)">Silver Statue (R15)</button>
+                    <button class="btn" style="background-color: #d4ac0d;" onclick="selectBuilding('Gold Statue', 1, 1, '#d4ac0d', '#ffffff', 20, 'Statue', this)">Gold Statue (R20)</button>
+                    <button class="btn" style="background-color: #bdc3c7;" onclick="selectBuilding('Silver Statue', 1, 1, '#bdc3c7', '#000000', 15, 'Statue', this)">Silver Statue (R15)</button>
                     <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Manager Statue', 1, 1, '#8e44ad', '#ffffff', 18, 'Statue', this)">Manager Statue (R18)</button>
                     <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Tank Statue', 1, 1, '#8e44ad', '#ffffff', 17, 'Statue', this)">Tank Statue (R17)</button>
                     <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Helicopter Statue', 1, 1, '#8e44ad', '#ffffff', 17, 'Statue', this)">Helicopter Statue (R17)</button>
