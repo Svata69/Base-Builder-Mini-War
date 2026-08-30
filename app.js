@@ -1,7 +1,6 @@
 let currentSlot = 1;
 const uiElement = document.getElementById('ui');
 
-// Zabránění zoomování při skrolování nad UI
 if (uiElement) {
     uiElement.addEventListener('wheel', (e) => {
         e.stopPropagation();
@@ -99,21 +98,16 @@ planeGeo.rotateX(-Math.PI / 2);
 const groundPlane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ visible: false }));
 scene.add(groundPlane);
 
-// =========================================================================
-// VYTVÁŘENÍ 3D TEXTURY S ČISTÝM TEXTEM NA STŘEŠE
-// =========================================================================
-
+// Textura na horní straně budovy
 function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
     const ctx = canvas.getContext('2d');
 
-    // Pozadí budovy
     ctx.fillStyle = bgColorHexStr;
     ctx.fillRect(0, 0, 512, 512);
 
-    // Okraj budovy
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 16;
     ctx.strokeRect(0, 0, 512, 512);
@@ -130,7 +124,6 @@ function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
         lines.push(text);
     }
 
-    // Přidání jemného řádku s boostem
     if (boosts) {
         let boostTexts = [];
         if (boosts.prodSpeed > 0) boostTexts.push(`+${boosts.prodSpeed}% EFF`);
@@ -160,7 +153,6 @@ function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
         ctx.lineWidth = 10;
         ctx.strokeText(line, 256, y);
 
-        // Tyrkysový text pro boost
         ctx.fillStyle = isBoostLine ? '#00ffff' : textColor;
         ctx.fillText(line, 256, y);
     });
@@ -170,6 +162,7 @@ function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
     return texture;
 }
 
+// Vytvoření žlutého okruhu dosahu (viditelný přes všechny budovy)
 function createRadiusRing(radius) {
     if (!radius || radius <= 0) return null;
 
@@ -180,16 +173,25 @@ function createRadiusRing(radius) {
     for (let i = 0; i <= segments; i++) {
         const theta = (i / segments) * Math.PI * 2;
         positions[i * 3] = Math.cos(theta) * radius;
-        positions[i * 3 + 1] = 0.05;
+        positions[i * 3 + 1] = 0.8;
         positions[i * 3 + 2] = Math.sin(theta) * radius;
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const material = new THREE.LineBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.8 });
-    return new THREE.LineLoop(geometry, material);
+    
+    const material = new THREE.LineBasicMaterial({ 
+        color: 0xffff00, 
+        transparent: true, 
+        opacity: 0.9,
+        depthTest: false,
+        depthWrite: false
+    });
+
+    const line = new THREE.LineLoop(geometry, material);
+    line.renderOrder = 999;
+    return line;
 }
 
-// Stav aplikace
 let currentName = 'The Manor';
 let baseWidth = 8;
 let baseDepth = 8;
@@ -206,7 +208,6 @@ const placedBuildings = [];
 function getCurrentWidth() { return isRotated ? baseDepth : baseWidth; }
 function getCurrentDepth() { return isRotated ? baseWidth : baseDepth; }
 
-// Náhled budovy před položením
 let previewGroup = new THREE.Group();
 scene.add(previewGroup);
 
@@ -317,19 +318,15 @@ function updateBuildingStatsUI() {
     statsList.innerHTML = html;
 }
 
-// =========================================================================
-// PŘEPOČET SOCH A APLIKACE BOOSTŮ (PODMÍNKA: VÍC NEŽ POLOVINA V KRUHU)
-// =========================================================================
+// LOGIKA BOOSTŮ (ZPŘÍSNĚNO: MUSÍ BÝT Z POLOVINY UVNITŘ KRUHU)
 function recalculateStatueBoosts() {
     const statues = placedBuildings.filter(b => b.userData.category === 'Statue');
     
     placedBuildings.forEach(building => {
         const data = building.userData;
         
-        // Vynulování předchozích boostů
         data.boosts = { prodSpeed: 0, hpBonus: 0, dmgBonus: 0, vehicleHp: 0, flyingHp: 0 };
 
-        // Trezory a Sochy samotné boosty ignorují
         if (data.category !== 'Statue' && data.name !== 'Vault' && data.name !== 'Nuclear Vault') {
             let hasGold = false;
             let hasSilver = false;
@@ -343,16 +340,13 @@ function recalculateStatueBoosts() {
                 const stData = statue.userData;
                 const statueName = stData.name.toLowerCase();
                 
-                // Vzdálenost středů
                 const centerDist = building.position.distanceTo(statue.position);
+                const minDimension = Math.min(data.width, data.depth);
                 
-                // Poloviční úhlopříčka budovy
-                const halfDiag = Math.sqrt(data.width * data.width + data.depth * data.depth) / 2;
-                
-                // PŘÍSNÁ PODMÍNKA: Kruh musí zasahovat do budovy alespoň přes polovinu jejího rozměru
-                const requiredMaxDist = stData.radius + (halfDiag * 0.5);
+                // Přísná tolerance pro přesah přes polovinu
+                const halfInsideLimit = stData.radius + (minDimension * 0.25);
 
-                if (centerDist <= requiredMaxDist) {
+                if (centerDist <= halfInsideLimit) {
                     if (statueName.includes('gold')) hasGold = true;
                     if (statueName.includes('silver')) hasSilver = true;
                     if (statueName.includes('manager')) hasManager = true;
@@ -363,7 +357,7 @@ function recalculateStatueBoosts() {
                 }
             });
 
-            // 1. APLIKACE BOOSTŮ PRO TOVÁRNY (NESČÍTÁ SE - POUZE NEJVYŠŠÍ)
+            // Pouze pro Factory, nesčítá se (bere nejvyšší)
             if (data.category === 'Factory') {
                 if (hasGold) {
                     data.boosts.prodSpeed = 50;
@@ -374,7 +368,6 @@ function recalculateStatueBoosts() {
                 }
             }
 
-            // 2. APLIKACE BOOSTŮ PRO VOJENSKÉ BUDOVY
             if (data.category === 'Military') {
                 if (hasSpider) data.boosts.hpBonus = 20;
                 if (hasSoldier) data.boosts.dmgBonus = 10;
@@ -383,7 +376,6 @@ function recalculateStatueBoosts() {
             }
         }
 
-        // Aktualizace 3D textury na horní straně budovy (čisté zobrazení bez aury)
         const newTexture = createTopTexture(data.name, data.colorStr, data.textColor, data.boosts);
         if (data.mainMesh.material[2].map) {
             data.mainMesh.material[2].map.dispose();
