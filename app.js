@@ -162,7 +162,7 @@ function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
     return texture;
 }
 
-// Vytvoření žlutého okruhu dosahu (viditelný přes všechny budovy)
+// Vytvoření žlutého okruhu dosahu (viditelný PŘES VŠECHNY BUDOVY)
 function createRadiusRing(radius) {
     if (!radius || radius <= 0) return null;
 
@@ -173,7 +173,7 @@ function createRadiusRing(radius) {
     for (let i = 0; i <= segments; i++) {
         const theta = (i / segments) * Math.PI * 2;
         positions[i * 3] = Math.cos(theta) * radius;
-        positions[i * 3 + 1] = 0.8;
+        positions[i * 3 + 1] = 2.0; // Mírně zvednuto
         positions[i * 3 + 2] = Math.sin(theta) * radius;
     }
 
@@ -183,12 +183,12 @@ function createRadiusRing(radius) {
         color: 0xffff00, 
         transparent: true, 
         opacity: 0.9,
-        depthTest: false,
+        depthTest: false, // Klíčové: ignoruje hloubkový test
         depthWrite: false
     });
 
     const line = new THREE.LineLoop(geometry, material);
-    line.renderOrder = 999;
+    line.renderOrder = 9999; // Vykreslí se navrchu
     return line;
 }
 
@@ -318,7 +318,7 @@ function updateBuildingStatsUI() {
     statsList.innerHTML = html;
 }
 
-// LOGIKA BOOSTŮ (ZPŘÍSNĚNO: MUSÍ BÝT Z POLOVINY UVNITŘ KRUHU)
+// PŘÍSNÁ PODMÍNKA ZE HRY: STŘED BUDOVY MUSÍ BÝT UVNITŘ KRUHU
 function recalculateStatueBoosts() {
     const statues = placedBuildings.filter(b => b.userData.category === 'Statue');
     
@@ -340,13 +340,11 @@ function recalculateStatueBoosts() {
                 const stData = statue.userData;
                 const statueName = stData.name.toLowerCase();
                 
+                // Přesná vzdálenost mezi středem sochy a středem budovy
                 const centerDist = building.position.distanceTo(statue.position);
-                const minDimension = Math.min(data.width, data.depth);
                 
-                // Přísná tolerance pro přesah přes polovinu
-                const halfInsideLimit = stData.radius + (minDimension * 0.25);
-
-                if (centerDist <= halfInsideLimit) {
+                // Střed budovy MUSÍ být uvnitř poloměru sochy
+                if (centerDist <= stData.radius) {
                     if (statueName.includes('gold')) hasGold = true;
                     if (statueName.includes('silver')) hasSilver = true;
                     if (statueName.includes('manager')) hasManager = true;
@@ -357,7 +355,6 @@ function recalculateStatueBoosts() {
                 }
             });
 
-            // Pouze pro Factory, nesčítá se (bere nejvyšší)
             if (data.category === 'Factory') {
                 if (hasGold) {
                     data.boosts.prodSpeed = 50;
