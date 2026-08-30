@@ -9,6 +9,7 @@ if (uiElement) {
 
 function switchUpgradeTab(tabBtn, targetId) {
     const container = tabBtn.closest('.upgrade-container');
+    if(!container) return;
     container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     tabBtn.classList.add('active');
 
@@ -98,7 +99,6 @@ planeGeo.rotateX(-Math.PI / 2);
 const groundPlane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ visible: false }));
 scene.add(groundPlane);
 
-// Pomocná funkce pro kontrolu/úpravu poloměru vojenských soch
 function getEffectiveRadius(name, defaultRadius) {
     const lower = name.toLowerCase();
     if (lower.includes('spider') || lower.includes('tank') || lower.includes('helicopter') || lower.includes('soldier')) {
@@ -107,7 +107,6 @@ function getEffectiveRadius(name, defaultRadius) {
     return defaultRadius || 0;
 }
 
-// Textura na horní straně budovy
 function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -171,7 +170,6 @@ function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
     return texture;
 }
 
-// Vytvoření žlutého okruhu dosahu
 function createRadiusRing(radius) {
     if (!radius || radius <= 0) return null;
 
@@ -280,7 +278,6 @@ function rotateBuilding() {
     updatePreviewPosition();
 }
 
-// OVLÁDÁNÍ KLÁVESNICÍ (WASD + Escape + R)
 const keysPressed = {};
 
 window.addEventListener('keydown', (e) => {
@@ -359,13 +356,11 @@ function updateBuildingStatsUI() {
     statsList.innerHTML = html;
 }
 
-// DETEKCE PODLE MŘÍŽKOVÉHO DOSAHU (TILE-BASED / CHEBYSHEV DISTANCE JAKO V ROBLOXU)
 function recalculateStatueBoosts() {
     const statues = placedBuildings.filter(b => b.userData.category === 'Statue');
     
     placedBuildings.forEach(building => {
         const data = building.userData;
-        
         data.boosts = { prodSpeed: 0, hpBonus: 0, dmgBonus: 0, vehicleHp: 0, flyingHp: 0 };
 
         if (data.category !== 'Statue' && data.name !== 'Vault' && data.name !== 'Nuclear Vault') {
@@ -383,7 +378,6 @@ function recalculateStatueBoosts() {
             statues.forEach(statue => {
                 const stData = statue.userData;
                 const statueName = stData.name.toLowerCase();
-
                 const effectiveStatueRadius = getEffectiveRadius(stData.name, stData.radius);
 
                 const stX = statue.position.x;
@@ -393,13 +387,11 @@ function recalculateStatueBoosts() {
                 const tileDistZ = Math.abs(bZ - stZ) / tileSize;
 
                 const maxTileRadius = Math.round(effectiveStatueRadius / tileSize);
-                
                 const bHalfTilesW = (data.width / 2) / tileSize;
                 const bHalfTilesD = (data.depth / 2) / tileSize;
 
                 if (tileDistX <= maxTileRadius + bHalfTilesW && tileDistZ <= maxTileRadius + bHalfTilesD) {
                     const exactGridDist = Math.sqrt(Math.pow(bX - stX, 2) + Math.pow(bZ - stZ, 2));
-                    
                     if (exactGridDist <= effectiveStatueRadius + (tileSize * 0.25)) {
                         if (statueName.includes('gold')) hasGold = true;
                         if (statueName.includes('silver')) hasSilver = true;
@@ -413,13 +405,9 @@ function recalculateStatueBoosts() {
             });
 
             if (data.category === 'Factory') {
-                if (hasGold) {
-                    data.boosts.prodSpeed = 50;
-                } else if (hasSilver) {
-                    data.boosts.prodSpeed = 30;
-                } else if (hasManager) {
-                    data.boosts.prodSpeed = 25;
-                }
+                if (hasGold) data.boosts.prodSpeed = 50;
+                else if (hasSilver) data.boosts.prodSpeed = 30;
+                else if (hasManager) data.boosts.prodSpeed = 25;
             }
 
             if (data.category === 'Military') {
@@ -559,7 +547,6 @@ function updatePreviewPosition() {
 
     if (intersects.length > 0) {
         const intersect = intersects[0];
-
         const curW = getCurrentWidth();
         const curD = getCurrentDepth();
 
@@ -581,7 +568,6 @@ function updatePreviewPosition() {
             previewMat.color.setStyle(currentColorStr);
             canPlace = true;
 
-            // Pokládání při tažení
             if (isMouseDown) {
                 tryPlaceBuilding();
             }
@@ -610,11 +596,11 @@ window.addEventListener('pointermove', (event) => {
 });
 
 window.addEventListener('pointerdown', (event) => {
-    if (event.clientX > window.innerWidth - 300 && event.clientY < 600) return;
+    if (event.clientX > window.innerWidth - 320 && event.clientY < 600) return;
 
     if (event.button === 0) {
         isMouseDown = true;
-        updatePreviewPosition(); // Zkusí položit budovu na aktuální pozici
+        updatePreviewPosition();
     }
 
     if (event.button === 2 || event.button === 1) {
@@ -630,24 +616,24 @@ window.addEventListener('pointerup', (event) => {
         isMouseDown = false;
     }
 
-    if (event.clientX > window.innerWidth - 300 && event.clientY < 600) return;
+    if (event.clientX > window.innerWidth - 320 && event.clientY < 600) return;
 
     raycaster.setFromCamera(mouse, camera);
 
+    // Pravé tlačítko myši: smaže budovu, nebo zruší výběr, pokud se kliklo do prázdna
     if (event.button === 2) {
         if (!hasMovedMouse) {
-            if (currentName) {
-                deselectBuilding();
+            const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
+            const intersects = raycaster.intersectObjects(buildingMeshes);
+
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                const buildingGroup = hitMesh.parent;
+                scene.remove(buildingGroup);
+                placedBuildings.splice(placedBuildings.indexOf(buildingGroup), 1);
+                recalculateStatueBoosts();
             } else {
-                const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
-                const intersects = raycaster.intersectObjects(buildingMeshes);
-                if (intersects.length > 0) {
-                    const hitMesh = intersects[0].object;
-                    const buildingGroup = hitMesh.parent;
-                    scene.remove(buildingGroup);
-                    placedBuildings.splice(placedBuildings.indexOf(buildingGroup), 1);
-                    recalculateStatueBoosts();
-                }
+                deselectBuilding();
             }
         }
     }
@@ -657,7 +643,6 @@ window.addEventListener('pointerup', (event) => {
     }
 });
 
-// Zajištění zrušení drženého tlačítka i při vyjetí z okna
 window.addEventListener('blur', () => {
     isMouseDown = false;
     isPanning = false;
@@ -684,22 +669,13 @@ window.addEventListener('resize', () => {
 
 loadCurrentSlot();
 
-// POHYB KAMERY POMOCÍ WASD
 function updateCameraMovement() {
     const moveSpeed = 1.5 / camera.zoom;
 
-    if (keysPressed['w'] || keysPressed['arrowup']) {
-        camera.position.z -= moveSpeed;
-    }
-    if (keysPressed['s'] || keysPressed['arrowdown']) {
-        camera.position.z += moveSpeed;
-    }
-    if (keysPressed['a'] || keysPressed['arrowleft']) {
-        camera.position.x -= moveSpeed;
-    }
-    if (keysPressed['d'] || keysPressed['arrowright']) {
-        camera.position.x += moveSpeed;
-    }
+    if (keysPressed['w'] || keysPressed['arrowup']) camera.position.z -= moveSpeed;
+    if (keysPressed['s'] || keysPressed['arrowdown']) camera.position.z += moveSpeed;
+    if (keysPressed['a'] || keysPressed['arrowleft']) camera.position.x -= moveSpeed;
+    if (keysPressed['d'] || keysPressed['arrowright']) camera.position.x += moveSpeed;
 }
 
 function animate() {
