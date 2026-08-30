@@ -1,4 +1,3 @@
-HTML
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -38,19 +37,22 @@ HTML
             
             <div id="building-list">
                 
+                <!-- HOUSES -->
                 <div class="building-section">
                     <h3>Houses</h3>
-                    <button class="btn" style="background-color: #e74c3c;" onclick="selectBuilding('The Manor', 8, 8, '#e74c3c', '#ffffff', 0, 'Houses', this)">The Manor (8x8)</button>
-                    <button class="btn" style="background-color: #d35400;" onclick="selectBuilding('Grand Hotel', 15, 20, '#d35400', '#ffffff', 0, 'Houses', this)">Grand Hotel (15x20)</button>
-                    <button class="btn" style="background-color: #d35400;" onclick="selectBuilding('Double Turbo Tower', 12, 17, '#d35400', '#ffffff', 0, 'Houses', this)">Double Turbo Tower (12x17)</button>
-                    <button class="btn" style="background-color: #d35400;" onclick="selectBuilding('Giant Skyscraper', 14, 14, '#d35400', '#ffffff', 0, 'Houses', this)">Giant Skyscraper (14x14)</button>
+                    <button class="btn active" style="background-color: #e74c3c;" onclick="selectBuilding('The Manor', 8, 8, '#e74c3c', '#ffffff', 0, 'Houses', this)">The Manor (8x8)</button>
+                    <button class="btn" style="background-color: #003366;" onclick="selectBuilding('Grand Hotel', 15, 20, '#003366', '#ffffff', 0, 'Houses', this)">Grand Hotel (15x20)</button>
+                    <button class="btn" style="background-color: #2563eb;" onclick="selectBuilding('Double Turbo Tower', 12, 17, '#2563eb', '#ffffff', 0, 'Houses', this)">Double Turbo Tower (12x17)</button>
+                    <button class="btn" style="background-color: #00bfff;" onclick="selectBuilding('Giant Skyscraper', 14, 14, '#00bfff', '#ffffff', 0, 'Houses', this)">Giant Skyscraper (14x14)</button>
                 </div>
 
+                <!-- FACTORY -->
                 <div class="building-section">
                     <h3>Factory</h3>
                     <button class="btn" style="background-color: #d35400;" onclick="selectBuilding('Supernova Accelerator', 18, 18, '#d35400', '#ffffff', 0, 'Factory', this)">Supernova Accelerator (18x18)</button>
                     <button class="btn" style="background-color: #2c3e50;" onclick="selectBuilding('Area 51 Lab', 16, 16, '#2c3e50', '#ffffff', 0, 'Factory', this)">Area 51 Lab (16x16)</button>
 
+                    <!-- PŘEPÍNATELNÝ BLOK: GAMMA RAY GENERATOR -->
                     <div class="upgrade-container">
                         <div class="upgrade-tabs">
                             <button class="tab-btn active" onclick="switchUpgradeTab(this, 'gamma-v1')">Základní</button>
@@ -68,6 +70,7 @@ HTML
                     <button class="btn" style="background-color: #d35400;" onclick="selectBuilding('Quantum Core Generator', 10, 10, '#d35400', '#ffffff', 0, 'Factory', this)">Quantum Core Generator (10x10)</button>
                     <button class="btn" style="background-color: #7d3c98;" onclick="selectBuilding('Antimatter Reactor', 10, 10, '#7d3c98', '#ffffff', 0, 'Factory', this)">Antimatter Reactor (10x10)</button>
                     
+                    <!-- PŘEPÍNATELNÝ BLOK: CLONE FACILITY -->
                     <div class="upgrade-container">
                         <div class="upgrade-tabs">
                             <button class="tab-btn active" onclick="switchUpgradeTab(this, 'clone-v1')">Základní</button>
@@ -85,6 +88,7 @@ HTML
                         </div>
                     </div>
 
+                    <!-- PŘEPÍNATELNÝ BLOK: GEM MINE / GEM DEEP MINE -->
                     <div class="upgrade-container">
                         <div class="upgrade-tabs">
                             <button class="tab-btn active" onclick="switchUpgradeTab(this, 'gem-v1')">Gem Mine</button>
@@ -99,6 +103,7 @@ HTML
                     </div>
                 </div>
 
+                <!-- MILITARY -->
                 <div class="building-section">
                     <h3>Military</h3>
                     <button class="btn" style="background-color: #d35400;" onclick="selectBuilding('Titan Assembly', 16, 15, '#d35400', '#ffffff', 0, 'Military', this)">Titan Assembly (16x15)</button>
@@ -111,6 +116,7 @@ HTML
                     <button class="btn" style="background-color: #2980b9;" onclick="selectBuilding('Nuclear Vault', 12, 12, '#2980b9', '#ffffff', 0, 'Military', this)">Nuclear Vault (12x12)</button>
                 </div>
 
+                <!-- STATUES -->
                 <div class="building-section">
                     <h3>Statues</h3>
                     <button class="btn" style="background-color: #d4ac0d;" onclick="selectBuilding('Gold Statue', 1, 1, '#d4ac0d', '#ffffff', 20, 'Statue', this)">Gold Statue (R20)</button>
@@ -122,9 +128,11 @@ HTML
                     <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Soldier Statue', 1, 1, '#8e44ad', '#ffffff', 15, 'Statue', this)">Soldier Statue (R15)</button>
                 </div>
 
+                <!-- DECOR -->
                 <div class="building-section">
                     <h3>Decor & Utility</h3>
                     
+                    <!-- PŘEPÍNATELNÝ BLOK: WORKSHOPY -->
                     <div class="upgrade-container">
                         <div class="upgrade-tabs">
                             <button class="tab-btn active" onclick="switchUpgradeTab(this, 'ws-v1')">Základní</button>
