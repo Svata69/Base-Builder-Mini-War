@@ -211,7 +211,7 @@ let isRotated = false;
 let currentColorStr = '#cf4d3c';
 let currentTextColor = '#ffffff';
 let canPlace = false;
-let isBuilding = false; // Stav pro držení tlačítka stavení
+let isMouseDown = false;
 
 const placedBuildings = [];
 
@@ -230,7 +230,7 @@ let previewRadiusRing = null;
 function deselectBuilding() {
     currentName = null;
     previewGroup.visible = false;
-    isBuilding = false;
+    isMouseDown = false;
     document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
 }
 
@@ -463,7 +463,7 @@ function checkCollision(posX, posZ, w, d) {
     return false;
 }
 
-function placeSingleBuilding() {
+function tryPlaceBuilding() {
     if (!canPlace || !currentName) return;
 
     const curW = getCurrentWidth();
@@ -581,9 +581,9 @@ function updatePreviewPosition() {
             previewMat.color.setStyle(currentColorStr);
             canPlace = true;
 
-            // Pokládání při tažení myší (Drag-to-build)
-            if (isBuilding) {
-                placeSingleBuilding();
+            // Pokládání při tažení
+            if (isMouseDown) {
+                tryPlaceBuilding();
             }
         }
     }
@@ -613,10 +613,8 @@ window.addEventListener('pointerdown', (event) => {
     if (event.clientX > window.innerWidth - 300 && event.clientY < 600) return;
 
     if (event.button === 0) {
-        isBuilding = true;
-        if (canPlace && currentName) {
-            placeSingleBuilding();
-        }
+        isMouseDown = true;
+        updatePreviewPosition(); // Zkusí položit budovu na aktuální pozici
     }
 
     if (event.button === 2 || event.button === 1) {
@@ -628,11 +626,11 @@ window.addEventListener('pointerdown', (event) => {
 });
 
 window.addEventListener('pointerup', (event) => {
-    if (event.clientX > window.innerWidth - 300 && event.clientY < 600) return;
-
     if (event.button === 0) {
-        isBuilding = false;
+        isMouseDown = false;
     }
+
+    if (event.clientX > window.innerWidth - 300 && event.clientY < 600) return;
 
     raycaster.setFromCamera(mouse, camera);
 
@@ -657,6 +655,12 @@ window.addEventListener('pointerup', (event) => {
     if (event.button === 2 || event.button === 1) {
         isPanning = false;
     }
+});
+
+// Zajištění zrušení drženého tlačítka i při vyjetí z okna
+window.addEventListener('blur', () => {
+    isMouseDown = false;
+    isPanning = false;
 });
 
 window.addEventListener('contextmenu', event => event.preventDefault());
