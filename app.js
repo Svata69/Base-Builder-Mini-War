@@ -318,7 +318,7 @@ function updateBuildingStatsUI() {
     statsList.innerHTML = html;
 }
 
-// DETEKCE PŘEKRYVU KRUHU SOCHY A BOXU BUDOVY (KOLIZE AABB S KRUHEM)
+// ODKROČENA DETEKCE DLADŽDIC A NEJBLIŽŠÍCH BODŮ BUDOVY
 function recalculateStatueBoosts() {
     const statues = placedBuildings.filter(b => b.userData.category === 'Statue');
     
@@ -336,7 +336,6 @@ function recalculateStatueBoosts() {
             let hasTank = false;
             let hasHelicopter = false;
 
-            // Hranice budovy
             const bMinX = building.position.x - data.width / 2;
             const bMaxX = building.position.x + data.width / 2;
             const bMinZ = building.position.z - data.depth / 2;
@@ -349,17 +348,13 @@ function recalculateStatueBoosts() {
                 const stX = statue.position.x;
                 const stZ = statue.position.z;
 
-                // Najdeme nejbližší bod na obvodu/uvnitř budovy vzhledem ke středu sochy
-                const closestX = Math.max(bMinX, Math.min(stX, bMaxX));
-                const closestZ = Math.max(bMinZ, Math.min(stZ, bMaxZ));
+                // Vypočteme vzdálenost od středu sochy k nejbližší hraně/bodu na budově
+                const distanceToStatueCenter = Math.sqrt(
+                    Math.pow(Math.max(0, Math.abs(building.position.x - stX) - data.width / 2), 2) +
+                    Math.pow(Math.max(0, Math.abs(building.position.z - stZ) - data.depth / 2), 2)
+                );
 
-                // Vzdálenost středu sochy k tomuto nejbližšímu bodu budovy
-                const distX = stX - closestX;
-                const distZ = stZ - closestZ;
-                const distanceSq = (distX * distX) + (distZ * distZ);
-
-                // Pokud je nejbližší bod v dosahu poloměru sochy, budova dostává boost
-                if (distanceSq <= (stData.radius * stData.radius)) {
+                if (distanceToStatueCenter <= stData.radius) {
                     if (statueName.includes('gold')) hasGold = true;
                     if (statueName.includes('silver')) hasSilver = true;
                     if (statueName.includes('manager')) hasManager = true;
