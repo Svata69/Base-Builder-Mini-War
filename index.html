@@ -136,11 +136,25 @@
                         </div>
                     </div>
 
+                    <!-- PŘEPÍNATELNÝ BLOK: GEM MINE / GEM DEEP MINE -->
+                    <div class="upgrade-container">
+                        <div class="upgrade-tabs">
+                            <button class="tab-btn active" onclick="switchUpgradeTab(this, 'gem-v1')">Gem Mine</button>
+                            <button class="tab-btn" onclick="switchUpgradeTab(this, 'gem-v2')">Gem Deep Mine</button>
+                        </div>
+                        <div id="gem-v1" class="tab-content">
+                            <button class="btn" style="background-color: #9b59b6;" onclick="selectBuilding('Gem Mine', 10, 11, '#9b59b6', '#ffffff', 0, 'Decor', this)">Gem Mine (10x11)</button>
+                        </div>
+                        <div id="gem-v2" class="tab-content" style="display: none;">
+                            <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Gem Deep Mine', 15, 15, '#8e44ad', '#ffffff', 0, 'Decor', this)">Gem Deep Mine (15x15)</button>
+                        </div>
+                    </div>
+
+                    <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Research Booster', 12, 14, '#f39c12', '#ffffff', 0, 'Decor', this)">Research Booster (12x14)</button>
                     <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Crafting', 8, 9, '#f39c12', '#ffffff', 0, 'Decor', this)">Crafting (8x9)</button>
                     <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Club Hub', 8, 10, '#f39c12', '#ffffff', 0, 'Decor', this)">Club Hub (8x10)</button>
                     <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('General Residence', 13, 17, '#f39c12', '#ffffff', 0, 'Decor', this)">General Residence (13x17)</button>
                     <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Command Center', 12, 12, '#f39c12', '#ffffff', 0, 'Decor', this)">Command Center (12x12)</button>
-                    <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Research Booster', 12, 14, '#f39c12', '#ffffff', 0, 'Decor', this)">Research Booster (12x14)</button>
                     <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Builder Control', 8, 12, '#f39c12', '#ffffff', 0, 'Decor', this)">Builder Control (8x12)</button>
                 </div>
             </div>
