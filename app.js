@@ -2,9 +2,11 @@ let currentSlot = 1;
 const uiElement = document.getElementById('ui');
 
 // Zabránění zoomování při skrolování nad nabídkou
-uiElement.addEventListener('wheel', (e) => {
-    e.stopPropagation();
-});
+if (uiElement) {
+    uiElement.addEventListener('wheel', (e) => {
+        e.stopPropagation();
+    });
+}
 
 // Přepínání záložek pro vylepšené verze budov
 function switchUpgradeTab(tabBtn, targetId) {
@@ -107,20 +109,25 @@ planeGeo.rotateX(-Math.PI / 2);
 const groundPlane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ visible: false }));
 scene.add(groundPlane);
 
-// Textura vrchní strany budovy
+// =========================================================================
+// TEXTURA VRCHNÍ STRANY BUDOVY (Vykreslení popisu + boostů přímo na 3D model)
+// =========================================================================
 function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 512;
     const ctx = canvas.getContext('2d');
 
+    // Pozadí budovy
     ctx.fillStyle = bgColorHexStr;
     ctx.fillRect(0, 0, 512, 512);
 
+    // Černý okraj
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 16;
     ctx.strokeRect(0, 0, 512, 512);
 
+    // Rozdělení textu na řádky
     const words = text.split(' ');
     let lines = [];
     if (words.length > 2) {
@@ -133,6 +140,7 @@ function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
         lines.push(text);
     }
 
+    // Přidání řádku s informací o aktivním boostu ze sochy
     if (boosts) {
         let boostTexts = [];
         if (boosts.prodSpeed > 0) boostTexts.push(`+${boosts.prodSpeed}% Eff`);
@@ -146,27 +154,31 @@ function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
         }
     }
 
-    let fontSize = lines.length > 2 ? 36 : (lines.length > 1 ? 50 : 75);
+    let fontSize = lines.length > 2 ? 38 : (lines.length > 1 ? 50 : 65);
     ctx.font = 'bold ' + fontSize + 'px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    const lineHeight = fontSize * 1.15;
+    const lineHeight = fontSize * 1.2;
     const startY = 256 - ((lines.length - 1) * lineHeight) / 2;
 
     lines.forEach((line, index) => {
         const y = startY + (index * lineHeight);
         const isBoostLine = line.startsWith('[ ');
 
+        // Černé obtažení písma
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 12;
+        ctx.lineWidth = 10;
         ctx.strokeText(line, 256, y);
 
-        ctx.fillStyle = isBoostLine ? '#00ffcc' : textColor;
+        // Zvýraznění boostů jasně tyrkysovou barvou
+        ctx.fillStyle = isBoostLine ? '#00ffff' : textColor;
         ctx.fillText(line, 256, y);
     });
 
-    return new THREE.CanvasTexture(canvas);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
 }
 
 // Vytvoření žluté kružnice dosahu sochy
@@ -304,6 +316,8 @@ function createBuildingMesh(name, w, d, colorStr, textColor, radius, category, b
 
 function updateBuildingStatsUI() {
     const statsList = document.getElementById('stats-list');
+    if (!statsList) return;
+
     const counts = {};
 
     placedBuildings.forEach(b => {
@@ -324,6 +338,7 @@ function updateBuildingStatsUI() {
     statsList.innerHTML = html;
 }
 
+// Přepočet dosahu soch a aplikace boostů NA 3D STRANU BUDOVY
 function recalculateStatueBoosts() {
     const statues = placedBuildings.filter(b => b.userData.category === 'Statue');
     
@@ -333,6 +348,7 @@ function recalculateStatueBoosts() {
         
         data.boosts = { prodSpeed: 0, hpBonus: 0, dmgBonus: 0, vehicleHp: 0, flyingHp: 0 };
 
+        // Trezory a sochy samotné boosty nedostávají
         if (data.category !== 'Statue' && data.name !== 'Vault' && data.name !== 'Nuclear Vault') {
             let hasGold = false;
             let hasSilver = false;
@@ -347,8 +363,8 @@ function recalculateStatueBoosts() {
                 const dist = building.position.distanceTo(statue.position);
 
                 if (dist <= stData.radius) {
-                    if (stData.name === 'Gold Statue') hasGold = true;
-                    if (stData.name === 'Silver Statue') hasSilver = true;
+                    if (stData.name === 'Golden Beast Statue' || stData.name === 'Gold Statue') hasGold = true;
+                    if (stData.name === 'Silver Beast Statue' || stData.name === 'Silver Statue') hasSilver = true;
                     if (stData.name === 'Manager Statue') hasManager = true;
                     if (stData.name === 'Spider Mech Statue') hasSpider = true;
                     if (stData.name === 'Soldier Statue') hasSoldier = true;
@@ -357,6 +373,7 @@ function recalculateStatueBoosts() {
                 }
             });
 
+            // 1. Továrny (vždy pouze nejsilnější boost)
             if (data.category === 'Factory') {
                 if (hasGold) {
                     data.boosts.prodSpeed = 50;
@@ -367,6 +384,7 @@ function recalculateStatueBoosts() {
                 }
             }
 
+            // 2. Vojenské budovy (boosty se sčítají podle typu)
             if (data.category === 'Military') {
                 if (hasSpider) data.boosts.hpBonus = 20;
                 if (hasSoldier) data.boosts.dmgBonus = 10;
@@ -375,6 +393,7 @@ function recalculateStatueBoosts() {
             }
         }
 
+        // Zkontrolujeme, zda se hodnota zpoza sochy změnila -> pokud ano, okamžitě překreslíme 3D texturu
         if (oldBoosts.prodSpeed !== data.boosts.prodSpeed || 
             oldBoosts.hpBonus !== data.boosts.hpBonus || 
             oldBoosts.dmgBonus !== data.boosts.dmgBonus ||
@@ -382,7 +401,13 @@ function recalculateStatueBoosts() {
             oldBoosts.flyingHp !== data.boosts.flyingHp) {
             
             const newTexture = createTopTexture(data.name, data.colorStr, data.textColor, data.boosts);
-            data.mainMesh.material[2].map.dispose();
+            
+            // Odstranění staré textury z paměti
+            if (data.mainMesh.material[2].map) {
+                data.mainMesh.material[2].map.dispose();
+            }
+
+            // Přidání nové textury do 3D materiálu
             data.mainMesh.material[2].map = newTexture;
             data.mainMesh.material[2].needsUpdate = true;
         }
@@ -544,6 +569,7 @@ window.addEventListener('pointerup', (event) => {
 
     raycaster.setFromCamera(mouse, camera);
 
+    // Mazání budovy pravým tlačítkem
     if (event.button === 2 && !hasMovedMouse) {
         const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
         const intersects = raycaster.intersectObjects(buildingMeshes);
@@ -556,6 +582,7 @@ window.addEventListener('pointerup', (event) => {
         }
     }
 
+    // Položení budovy levým tlačítkem
     if (event.button === 0 && canPlace) {
         const intersects = raycaster.intersectObject(groundPlane);
         if (intersects.length > 0) {
@@ -566,6 +593,8 @@ window.addEventListener('pointerup', (event) => {
             buildingGroup.position.copy(previewGroup.position);
             scene.add(buildingGroup);
             placedBuildings.push(buildingGroup);
+            
+            // Přepočítá boosty a aktualizuje textury dotčených 3D budov
             recalculateStatueBoosts();
 
             canPlace = false;
