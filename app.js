@@ -620,19 +620,22 @@ window.addEventListener('pointerup', (event) => {
 
     raycaster.setFromCamera(mouse, camera);
 
-    // Pravé tlačítko myši: smaže budovu, nebo zruší výběr, pokud se kliklo do prázdna
+    // Správně oddělená logika pravého tlačítka
     if (event.button === 2) {
         if (!hasMovedMouse) {
             const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
             const intersects = raycaster.intersectObjects(buildingMeshes);
 
             if (intersects.length > 0) {
+                // 1. Pokud bylo kliknuto na konkrétní budovu, smaže se JEN tato budova
                 const hitMesh = intersects[0].object;
                 const buildingGroup = hitMesh.parent;
                 scene.remove(buildingGroup);
                 placedBuildings.splice(placedBuildings.indexOf(buildingGroup), 1);
                 recalculateStatueBoosts();
-            } else {
+                updatePreviewPosition(); // Obnovíme stav náhledu na mapě
+            } else if (currentName) {
+                // 2. Pouze pokud bylo kliknuto do prázdna, zruší se výběr z kurzoru
                 deselectBuilding();
             }
         }
