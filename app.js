@@ -9,10 +9,13 @@ uiElement.addEventListener('wheel', (e) => {
 // Přepínání záložek pro vylepšené verze budov
 function switchUpgradeTab(tabBtn, targetId) {
     const container = tabBtn.closest('.upgrade-container');
+    
+    // Aktivace tlačítka záložky
     container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     tabBtn.classList.add('active');
 
-    container.querySelectorAll('div[id]').forEach(content => {
+    // Přepnutí viditelnosti obsahu záložek
+    container.querySelectorAll('.tab-content').forEach(content => {
         if (content.id === targetId) {
             content.style.display = 'block';
         } else {
@@ -246,7 +249,7 @@ function selectBuilding(name, w, d, colorStr, textColor, radius, category, btn) 
     currentTextColor = textColor;
 
     document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    if (btn) btn.classList.add('active');
 
     previewMat.color.setStyle(currentColorStr);
     updatePreviewMesh();
@@ -330,7 +333,6 @@ function recalculateStatueBoosts() {
         
         data.boosts = { prodSpeed: 0, hpBonus: 0, dmgBonus: 0, vehicleHp: 0, flyingHp: 0 };
 
-        // Ignorovat sochy a Vaulty (Vault & Nuclear Vault)
         if (data.category !== 'Statue' && data.name !== 'Vault' && data.name !== 'Nuclear Vault') {
             let hasGold = false;
             let hasSilver = false;
