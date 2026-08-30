@@ -1,10 +1,12 @@
 let currentSlot = 1;
 const uiElement = document.getElementById('ui');
 
+// Zabránění zoomování mapy při skrolování nad UI panelem
 uiElement.addEventListener('wheel', (e) => {
     e.stopPropagation();
 });
 
+// Vyhledávání budov v nabídce
 function filterBuildings() {
     const query = document.getElementById('search-box').value.toLowerCase();
     const sections = document.querySelectorAll('.building-section');
@@ -27,12 +29,14 @@ function filterBuildings() {
     });
 }
 
+// Inicializace Three.js Scény
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a3318);
 
 const gridWidth = 160;
 const gridHeight = 128;
 
+// Ortografická kamera pro 2D pohled shora
 const aspect = window.innerWidth / window.innerHeight;
 let d = 90;
 const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
@@ -43,6 +47,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+// Vytvoření šachovnicového podkladu
 const boardGroup = new THREE.Group();
 const tileSize = 4;
 const cols = gridWidth / tileSize;
@@ -65,6 +70,7 @@ for (let r = 0; r < rows; r++) {
 }
 scene.add(boardGroup);
 
+// Mřížka (Grid Line Segments)
 const gridMat = new THREE.LineBasicMaterial({ color: 0x183815, transparent: true, opacity: 0.5 });
 const gridGeo = new THREE.BufferGeometry();
 const points = [];
@@ -79,11 +85,13 @@ gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
 const customGrid = new THREE.LineSegments(gridGeo, gridMat);
 scene.add(customGrid);
 
+// Neviditelný podklad pro zachytávání paprsků myši (Raycasting)
 const planeGeo = new THREE.PlaneGeometry(gridWidth, gridHeight);
 planeGeo.rotateX(-Math.PI / 2);
 const groundPlane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ visible: false }));
 scene.add(groundPlane);
 
+// Generátor textury budov (Názvy + Aplikované Boosty)
 function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -111,9 +119,11 @@ function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
 
     if (boosts) {
         let boostTexts = [];
-        if (boosts.prodSpeed > 0) boostTexts.push(`+${boosts.prodSpeed}% Efficiency`);
+        if (boosts.prodSpeed > 0) boostTexts.push(`+${boosts.prodSpeed}% Eff`);
         if (boosts.hpBonus > 0) boostTexts.push(`+${boosts.hpBonus}% HP`);
         if (boosts.dmgBonus > 0) boostTexts.push(`+${boosts.dmgBonus}% Dmg`);
+        if (boosts.vehicleHp > 0) boostTexts.push(`+${boosts.vehicleHp}% Veh HP`);
+        if (boosts.flyingHp > 0) boostTexts.push(`+${boosts.flyingHp}% Fly HP`);
         
         if (boostTexts.length > 0) {
             lines.push(`[ ${boostTexts.join(' | ')} ]`);
@@ -143,6 +153,7 @@ function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
     return new THREE.CanvasTexture(canvas);
 }
 
+// Vytvoření kružnice dosahu sochy
 function createRadiusRing(radius) {
     if (!radius || radius <= 0) return null;
     
@@ -169,6 +180,7 @@ function createRadiusRing(radius) {
     return new THREE.LineLoop(geometry, material);
 }
 
+// Globální proměnné pro výběr a stav
 let currentName = 'The Manor';
 let baseWidth = 8;
 let baseDepth = 8;
@@ -185,6 +197,7 @@ const placedBuildings = [];
 function getCurrentWidth() { return isRotated ? baseDepth : baseWidth; }
 function getCurrentDepth() { return isRotated ? baseWidth : baseDepth; }
 
+// Náhled umísťování budovy (Preview)
 let previewGroup = new THREE.Group();
 scene.add(previewGroup);
 
@@ -239,6 +252,7 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
+// Funkce pro samotné vytvoření Mesh objektu budovy
 function createBuildingMesh(name, w, d, colorStr, textColor, radius, category, boosts = null) {
     const group = new THREE.Group();
     
@@ -268,11 +282,12 @@ function createBuildingMesh(name, w, d, colorStr, textColor, radius, category, b
         colorStr: colorStr,
         textColor: textColor,
         mainMesh: buildingMesh,
-        boosts: boosts || { prodSpeed: 0, hpBonus: 0, dmgBonus: 0 }
+        boosts: boosts || { prodSpeed: 0, hpBonus: 0, dmgBonus: 0, vehicleHp: 0, flyingHp: 0 }
     };
     return group;
 }
 
+// Výpočet a vykreslení statistik v UI
 function updateBuildingStatsUI() {
     const statsList = document.getElementById('stats-list');
     const counts = {};
@@ -295,6 +310,7 @@ function updateBuildingStatsUI() {
     statsList.innerHTML = html;
 }
 
+// Přepočet efektů soch na budovy v dosahu
 function recalculateStatueBoosts() {
     const statues = placedBuildings.filter(b => b.userData.category === 'Statue');
     
@@ -302,13 +318,17 @@ function recalculateStatueBoosts() {
         const data = building.userData;
         const oldBoosts = { ...data.boosts };
         
-        data.boosts = { prodSpeed: 0, hpBonus: 0, dmgBonus: 0 };
+        data.boosts = { prodSpeed: 0, hpBonus: 0, dmgBonus: 0, vehicleHp: 0, flyingHp: 0 };
 
-        if (data.category !== 'Statue') {
+        // Ignorovat sochy a Vaulty (Vault & Nuclear Vault neberou boosty)
+        if (data.category !== 'Statue' && data.name !== 'Vault' && data.name !== 'Nuclear Vault') {
             let hasGold = false;
             let hasSilver = false;
+            let hasManager = false;
             let hasSpider = false;
             let hasSoldier = false;
+            let hasTank = false;
+            let hasHelicopter = false;
 
             statues.forEach(statue => {
                 const stData = statue.userData;
@@ -317,28 +337,40 @@ function recalculateStatueBoosts() {
                 if (dist <= stData.radius) {
                     if (stData.name === 'Gold Statue') hasGold = true;
                     if (stData.name === 'Silver Statue') hasSilver = true;
+                    if (stData.name === 'Manager Statue') hasManager = true;
                     if (stData.name === 'Spider Mech Statue') hasSpider = true;
                     if (stData.name === 'Soldier Statue') hasSoldier = true;
+                    if (stData.name === 'Tank Statue') hasTank = true;
+                    if (stData.name === 'Helicopter Statue') hasHelicopter = true;
                 }
             });
 
+            // Aplikace neagregujících se bonusů na Factory
             if (data.category === 'Factory') {
                 if (hasGold) {
                     data.boosts.prodSpeed = 50;
                 } else if (hasSilver) {
                     data.boosts.prodSpeed = 30;
+                } else if (hasManager) {
+                    data.boosts.prodSpeed = 25;
                 }
             }
 
+            // Aplikace bonusů na Military
             if (data.category === 'Military') {
                 if (hasSpider) data.boosts.hpBonus = 20;
                 if (hasSoldier) data.boosts.dmgBonus = 10;
+                if (hasTank) data.boosts.vehicleHp = 10;
+                if (hasHelicopter) data.boosts.flyingHp = 10;
             }
         }
 
+        // Aktualizace popisku na budově v případě změny
         if (oldBoosts.prodSpeed !== data.boosts.prodSpeed || 
             oldBoosts.hpBonus !== data.boosts.hpBonus || 
-            oldBoosts.dmgBonus !== data.boosts.dmgBonus) {
+            oldBoosts.dmgBonus !== data.boosts.dmgBonus ||
+            oldBoosts.vehicleHp !== data.boosts.vehicleHp ||
+            oldBoosts.flyingHp !== data.boosts.flyingHp) {
             
             const newTexture = createTopTexture(data.name, data.colorStr, data.textColor, data.boosts);
             data.mainMesh.material[2].map.dispose();
@@ -351,6 +383,7 @@ function recalculateStatueBoosts() {
     saveCurrentSlot();
 }
 
+// Kontrola překrývání s jinou budovou
 function checkCollision(posX, posZ, w, d) {
     const newMinX = posX - w / 2;
     const newMaxX = posX + w / 2;
@@ -372,6 +405,7 @@ function checkCollision(posX, posZ, w, d) {
     return false;
 }
 
+// Ukládání a načítání slotů skrze LocalStorage
 function saveCurrentSlot() {
     const saveData = placedBuildings.map(b => ({
         name: b.userData.name,
@@ -405,7 +439,7 @@ function loadCurrentSlot() {
                 placedBuildings.push(buildingGroup);
             });
         } catch(e) {
-            console.error("Chyba při načítání pozice", e);
+            console.error("Chyba při načítání dat ze slotu", e);
         }
     }
     recalculateStatueBoosts();
@@ -428,6 +462,7 @@ function clearCurrentSlot() {
     }
 }
 
+// Ovládání pohybu myši a klikání
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
@@ -503,6 +538,7 @@ window.addEventListener('pointerup', (event) => {
 
     raycaster.setFromCamera(mouse, camera);
 
+    // Pravé tlačítko = Smazat budovu pod kurzorem
     if (event.button === 2 && !hasMovedMouse) {
         const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
         const intersects = raycaster.intersectObjects(buildingMeshes);
@@ -515,6 +551,7 @@ window.addEventListener('pointerup', (event) => {
         }
     }
 
+    // Levé tlačítko = Umístit budovu
     if (event.button === 0 && canPlace) {
         const intersects = raycaster.intersectObject(groundPlane);
         if (intersects.length > 0) {
@@ -539,6 +576,7 @@ window.addEventListener('pointerup', (event) => {
 
 window.addEventListener('contextmenu', event => event.preventDefault());
 
+// Zoom pomocí kolečka myši
 window.addEventListener('wheel', (event) => {
     camera.zoom -= event.deltaY * 0.001;
     camera.zoom = Math.max(0.2, Math.min(camera.zoom, 5));
@@ -546,6 +584,7 @@ window.addEventListener('wheel', (event) => {
     updatePreviewPosition();
 });
 
+// Responzivita při změně velikosti okna
 window.addEventListener('resize', () => {
     const aspect = window.innerWidth / window.innerHeight;
     camera.left = -d * aspect;
@@ -558,13 +597,14 @@ window.addEventListener('resize', () => {
 
 loadCurrentSlot();
 
+// Render smyčka
 function animate() {
     requestAnimationFrame(animate);
     renderer.render(scene, camera);
 }
 animate();
 
-// Správa vysvětlovacího okna
+// Správa vysvětlovacího okná (Modal)
 const welcomeModal = document.getElementById('welcome-modal');
 const closeModalBtn = document.getElementById('close-modal-btn');
 
