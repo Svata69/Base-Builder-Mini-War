@@ -318,7 +318,7 @@ function updateBuildingStatsUI() {
     statsList.innerHTML = html;
 }
 
-// DETEKCE S VYHOVUJÍCÍ POLOVINOU HRANICE (HALF-TILE THRESHOLD)
+// DETEKCE PODLE MŘÍŽKOVÉHO DOSAHU (TILE-BASED / CHEBYSHEV DISTANCE JAKO V ROBLOXU)
 function recalculateStatueBoosts() {
     const statues = placedBuildings.filter(b => b.userData.category === 'Statue');
     
@@ -336,10 +336,8 @@ function recalculateStatueBoosts() {
             let hasTank = false;
             let hasHelicopter = false;
 
-            const bMinX = building.position.x - data.width / 2;
-            const bMaxX = building.position.x + data.width / 2;
-            const bMinZ = building.position.z - data.depth / 2;
-            const bMaxZ = building.position.z + data.depth / 2;
+            const bX = building.position.x;
+            const bZ = building.position.z;
 
             statues.forEach(statue => {
                 const stData = statue.userData;
@@ -348,22 +346,26 @@ function recalculateStatueBoosts() {
                 const stX = statue.position.x;
                 const stZ = statue.position.z;
 
-                // Spočítáme vzdálenost od středu sochy k nejbližší hraně budovy
-                const deltaX = Math.max(0, (bMinX - stX), (stX - bMaxX));
-                const deltaZ = Math.max(0, (bMinZ - stZ), (stZ - bMaxZ));
-                const distanceToEdge = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+                const tileDistX = Math.abs(bX - stX) / tileSize;
+                const tileDistZ = Math.abs(bZ - stZ) / tileSize;
 
-                // Kontrola k polovině hraniční dlaždice dosahu
-                const halfTileBoundary = stData.radius - (tileSize / 2);
+                const maxTileRadius = Math.round(stData.radius / tileSize);
+                
+                const bHalfTilesW = (data.width / 2) / tileSize;
+                const bHalfTilesD = (data.depth / 2) / tileSize;
 
-                if (distanceToEdge <= halfTileBoundary) {
-                    if (statueName.includes('gold')) hasGold = true;
-                    if (statueName.includes('silver')) hasSilver = true;
-                    if (statueName.includes('manager')) hasManager = true;
-                    if (statueName.includes('spider')) hasSpider = true;
-                    if (statueName.includes('soldier')) hasSoldier = true;
-                    if (statueName.includes('tank')) hasTank = true;
-                    if (statueName.includes('helicopter')) hasHelicopter = true;
+                if (tileDistX <= maxTileRadius + bHalfTilesW && tileDistZ <= maxTileRadius + bHalfTilesD) {
+                    const exactGridDist = Math.sqrt(Math.pow(bX - stX, 2) + Math.pow(bZ - stZ, 2));
+                    
+                    if (exactGridDist <= stData.radius + (tileSize * 0.25)) {
+                        if (statueName.includes('gold')) hasGold = true;
+                        if (statueName.includes('silver')) hasSilver = true;
+                        if (statueName.includes('manager')) hasManager = true;
+                        if (statueName.includes('spider')) hasSpider = true;
+                        if (statueName.includes('soldier')) hasSoldier = true;
+                        if (statueName.includes('tank')) hasTank = true;
+                        if (statueName.includes('helicopter')) hasHelicopter = true;
+                    }
                 }
             });
 
