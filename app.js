@@ -162,7 +162,7 @@ function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
     return texture;
 }
 
-// Vytvoření žlutého okruhu dosahu (viditelný PŘES VŠECHNY BUDOVY)
+// Vytvoření žlutého okruhu dosahu
 function createRadiusRing(radius) {
     if (!radius || radius <= 0) return null;
 
@@ -318,7 +318,7 @@ function updateBuildingStatsUI() {
     statsList.innerHTML = html;
 }
 
-// ODKROČENA DETEKCE DLADŽDIC A NEJBLIŽŠÍCH BODŮ BUDOVY
+// ROBLOX AABB EDGE-TO-EDGE DETEKCE (MĚŘENÍ OD KRAJE SOCHY KE KRAJI BUDOVY)
 function recalculateStatueBoosts() {
     const statues = placedBuildings.filter(b => b.userData.category === 'Statue');
     
@@ -336,6 +336,7 @@ function recalculateStatueBoosts() {
             let hasTank = false;
             let hasHelicopter = false;
 
+            // Hranice budovy
             const bMinX = building.position.x - data.width / 2;
             const bMaxX = building.position.x + data.width / 2;
             const bMinZ = building.position.z - data.depth / 2;
@@ -344,17 +345,24 @@ function recalculateStatueBoosts() {
             statues.forEach(statue => {
                 const stData = statue.userData;
                 const statueName = stData.name.toLowerCase();
-                
-                const stX = statue.position.x;
-                const stZ = statue.position.z;
 
-                // Vypočteme vzdálenost od středu sochy k nejbližší hraně/bodu na budově
-                const distanceToStatueCenter = Math.sqrt(
-                    Math.pow(Math.max(0, Math.abs(building.position.x - stX) - data.width / 2), 2) +
-                    Math.pow(Math.max(0, Math.abs(building.position.z - stZ) - data.depth / 2), 2)
-                );
+                // Hranice sochy (socha také zabírá plochu na gridu)
+                const stW = stData.width || 4;
+                const stD = stData.depth || 4;
+                const stMinX = statue.position.x - stW / 2;
+                const stMaxX = statue.position.x + stW / 2;
+                const stMinZ = statue.position.z - stD / 2;
+                const stMaxZ = statue.position.z + stD / 2;
 
-                if (distanceToStatueCenter <= stData.radius) {
+                // Vzdálenost mezi hranami sochy a hranami budovy na osách X a Z
+                const deltaX = Math.max(0, stMinX - bMaxX, bMinX - stMaxX);
+                const deltaZ = Math.max(0, stMinZ - bMaxZ, bMinZ - stMaxZ);
+
+                // Nejkratší vzdušná vzdálenost mezi nejbližšími okrajovými body obou objektů
+                const edgeToEdgeDistance = Math.sqrt((deltaX * deltaX) + (deltaZ * deltaZ));
+
+                // Přidáváme toleranci 0.5 jednotky kvůli plovoucí řádové čárce na mřížce
+                if (edgeToEdgeDistance <= stData.radius + 0.5) {
                     if (statueName.includes('gold')) hasGold = true;
                     if (statueName.includes('silver')) hasSilver = true;
                     if (statueName.includes('manager')) hasManager = true;
