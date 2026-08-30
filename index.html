@@ -18,7 +18,7 @@
             position: absolute;
             top: 10px;
             right: 10px;
-            width: 250px;
+            width: 270px;
             max-height: 95vh;
             background: rgba(20, 20, 20, 0.85);
             padding: 15px;
@@ -58,19 +58,20 @@
             border-radius: 4px;
             cursor: pointer;
             text-align: left;
-            font-size: 13px;
-            transition: background 0.2s;
+            font-size: 12px;
+            transition: all 0.2s;
             width: 100%;
             box-sizing: border-box;
+            font-weight: bold;
         }
 
         .btn:hover {
-            background: #444;
+            filter: brightness(1.2);
         }
 
         .btn.active {
-            background: #27ae60;
-            border-color: #2ecc71;
+            border-color: #ffffff !important;
+            box-shadow: 0 0 8px #ffffff;
         }
 
         .slot-btn {
@@ -79,26 +80,22 @@
         }
 
         .slot-btn.active {
-            background: #2980b9;
-            border-color: #3498db;
+            background: #2980b9 !important;
+            border-color: #3498db !important;
         }
 
         .btn-danger {
-            background: #c0392b;
-            border-color: #e74c3c;
+            background: #c0392b !important;
+            border-color: #e74c3c !important;
             text-align: center;
-        }
-
-        .btn-danger:hover {
-            background: #e74c3c;
         }
 
         #building-list {
             overflow-y: auto;
-            max-height: 400px;
+            max-height: 420px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
             padding-right: 5px;
         }
 
@@ -122,6 +119,40 @@
             margin-bottom: 5px;
         }
 
+        /* Stylování přepínatelných záložek pro vylepšení (Upgrade Tabs) */
+        .upgrade-container {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 6px;
+            margin-bottom: 4px;
+        }
+
+        .upgrade-tabs {
+            display: flex;
+            gap: 3px;
+            margin-bottom: 6px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: #222;
+            color: #888;
+            border: 1px solid #444;
+            padding: 4px 2px;
+            font-size: 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .tab-btn.active {
+            background: #444;
+            color: #fff;
+            border-color: #777;
+        }
+
         #stats-list {
             max-height: 120px;
             overflow-y: auto;
@@ -142,7 +173,6 @@
             font-weight: bold;
         }
 
-        /* Styling pro uvítací okno */
         #welcome-modal {
             position: absolute;
             top: 50%;
@@ -182,17 +212,11 @@
             border-radius: 5px;
             cursor: pointer;
         }
-
-        #close-modal-btn:hover {
-            background: #2ecc71;
-        }
     </style>
-    <!-- Three.js knihovna -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <!-- Vysvětlovací modal okno -->
     <div id="welcome-modal">
         <h2>Ovládání Plánovače</h2>
         <ul>
@@ -204,7 +228,6 @@
         <button id="close-modal-btn">Rozumím</button>
     </div>
 
-    <!-- UI Panel -->
     <div id="ui">
         <div class="ui-section">
             <h3>Uložené Pozice (Sloty)</h3>
@@ -221,54 +244,95 @@
             <input type="text" id="search-box" placeholder="Hledat budovu..." oninput="filterBuildings()">
             
             <div id="building-list">
-                <!-- Sekce HOUSES -->
+                
+                <!-- HOUSES -->
                 <div class="building-section">
                     <h3>Houses</h3>
-                    <button class="btn active" onclick="selectBuilding('The Manor', 8, 8, '#cf4d3c', '#ffffff', 0, 'Houses', this)">The Manor (8x8)</button>
-                    <button class="btn" onclick="selectBuilding('Grand Hotel', 15, 20, '#d97724', '#ffffff', 0, 'Houses', this)">Grand Hotel (15x20)</button>
-                    <button class="btn" onclick="selectBuilding('Double Turbo Tower', 12, 17, '#d97724', '#ffffff', 0, 'Houses', this)">Double Turbo Tower (12x17)</button>
-                    <button class="btn" onclick="selectBuilding('Giant Skyscraper', 14, 14, '#d97724', '#ffffff', 0, 'Houses', this)">Giant Skyscraper (14x14)</button>
+                    <button class="btn active" style="background-color: #cf4d3c;" onclick="selectBuilding('The Manor', 8, 8, '#cf4d3c', '#ffffff', 0, 'Houses', this)">The Manor (8x8)</button>
+                    <button class="btn" style="background-color: #d97724;" onclick="selectBuilding('Grand Hotel', 15, 20, '#d97724', '#ffffff', 0, 'Houses', this)">Grand Hotel (15x20)</button>
+                    <button class="btn" style="background-color: #d97724;" onclick="selectBuilding('Double Turbo Tower', 12, 17, '#d97724', '#ffffff', 0, 'Houses', this)">Double Turbo Tower (12x17)</button>
+                    <button class="btn" style="background-color: #d97724;" onclick="selectBuilding('Giant Skyscraper', 14, 14, '#d97724', '#ffffff', 0, 'Houses', this)">Giant Skyscraper (14x14)</button>
                 </div>
 
-                <!-- Sekce FACTORY -->
+                <!-- FACTORY -->
                 <div class="building-section">
                     <h3>Factory</h3>
-                    <button class="btn" onclick="selectBuilding('Supernova Accelerator', 18, 18, '#27ae60', '#ffffff', 0, 'Factory', this)">Supernova Accelerator (18x18)</button>
-                    <button class="btn" onclick="selectBuilding('Area 51 Lab', 16, 16, '#27ae60', '#ffffff', 0, 'Factory', this)">Area 51 Lab (16x16)</button>
-                    <button class="btn" onclick="selectBuilding('Gamma Ray Generator', 16, 16, '#27ae60', '#ffffff', 0, 'Factory', this)">Gamma Ray Generator (16x16)</button>
-                    <button class="btn" onclick="selectBuilding('Blackhole Generator', 12, 12, '#27ae60', '#ffffff', 0, 'Factory', this)">Blackhole Generator (12x12)</button>
-                    <button class="btn" onclick="selectBuilding('Quantum Core Generator', 10, 10, '#27ae60', '#ffffff', 0, 'Factory', this)">Quantum Core Generator (10x10)</button>
-                    <button class="btn" onclick="selectBuilding('Antimatter Reactor', 10, 10, '#27ae60', '#ffffff', 0, 'Factory', this)">Antimatter Reactor (10x10)</button>
-                    <button class="btn" onclick="selectBuilding('Clone Facility', 10, 10, '#27ae60', '#ffffff', 0, 'Factory', this)">Clone Facility (10x10)</button>
+                    <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Supernova Accelerator', 18, 18, '#27ae60', '#ffffff', 0, 'Factory', this)">Supernova Accelerator (18x18)</button>
+                    <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Area 51 Lab', 16, 16, '#27ae60', '#ffffff', 0, 'Factory', this)">Area 51 Lab (16x16)</button>
+
+                    <!-- PŘEPÍNATELNÝ BLOK: GAMMA RAY GENERATOR -->
+                    <div class="upgrade-container">
+                        <div class="upgrade-tabs">
+                            <button class="tab-btn active" onclick="switchUpgradeTab(this, 'gamma-v1')">Základní</button>
+                            <button class="tab-btn" onclick="switchUpgradeTab(this, 'gamma-v2')">Upgraded</button>
+                        </div>
+                        <div id="gamma-v1">
+                            <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Gamma Ray Generator', 16, 16, '#27ae60', '#ffffff', 0, 'Factory', this)">Gamma Ray Generator (16x16)</button>
+                        </div>
+                        <div id="gamma-v2" style="display: none;">
+                            <button class="btn" style="background-color: #1e8449;" onclick="selectBuilding('Upgraded Gamma Ray Generator', 17, 16, '#1e8449', '#ffffff', 0, 'Factory', this)">Upgraded Gamma Ray Gen. (17x16)</button>
+                        </div>
+                    </div>
+
+                    <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Blackhole Generator', 12, 12, '#27ae60', '#ffffff', 0, 'Factory', this)">Blackhole Generator (12x12)</button>
+                    <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Quantum Core Generator', 10, 10, '#27ae60', '#ffffff', 0, 'Factory', this)">Quantum Core Generator (10x10)</button>
+                    <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Antimatter Reactor', 10, 10, '#27ae60', '#ffffff', 0, 'Factory', this)">Antimatter Reactor (10x10)</button>
+                    <button class="btn" style="background-color: #27ae60;" onclick="selectBuilding('Clone Facility', 10, 10, '#27ae60', '#ffffff', 0, 'Factory', this)">Clone Facility (10x10)</button>
                 </div>
 
-                <!-- Sekce MILITARY -->
+                <!-- MILITARY -->
                 <div class="building-section">
                     <h3>Military</h3>
-                    <button class="btn" onclick="selectBuilding('Titan Assembly', 12, 12, '#2980b9', '#ffffff', 0, 'Military', this)">Titan Assembly (12x12)</button>
-                    <button class="btn" onclick="selectBuilding('Vault', 12, 12, '#2980b9', '#ffffff', 0, 'Military', this)">Vault (12x12)</button>
-                    <button class="btn" onclick="selectBuilding('Nuclear Vault', 12, 12, '#2980b9', '#ffffff', 0, 'Military', this)">Nuclear Vault (12x12)</button>
+                    <button class="btn" style="background-color: #2980b9;" onclick="selectBuilding('Titan Assembly', 16, 15, '#2980b9', '#ffffff', 0, 'Military', this)">Titan Assembly (16x15)</button>
+                    <button class="btn" style="background-color: #2980b9;" onclick="selectBuilding('Air Fortress', 13, 20, '#2980b9', '#ffffff', 0, 'Military', this)">Air Fortress (13x20)</button>
+                    <button class="btn" style="background-color: #2980b9;" onclick="selectBuilding('Alien Starport', 10, 10, '#2980b9', '#ffffff', 0, 'Military', this)">Alien Starport (10x10)</button>
+                    <button class="btn" style="background-color: #2980b9;" onclick="selectBuilding('Alien Hive', 18, 18, '#2980b9', '#ffffff', 0, 'Military', this)">Alien Hive (18x18)</button>
+                    <button class="btn" style="background-color: #2980b9;" onclick="selectBuilding('Plasma Hangar', 16, 16, '#2980b9', '#ffffff', 0, 'Military', this)">Plasma Hangar (16x16)</button>
+                    <button class="btn" style="background-color: #2980b9;" onclick="selectBuilding('Military Cloner v2', 10, 14, '#2980b9', '#ffffff', 0, 'Military', this)">Military Cloner v2 (10x14)</button>
+                    <button class="btn" style="background-color: #2980b9;" onclick="selectBuilding('Vault', 12, 12, '#2980b9', '#ffffff', 0, 'Military', this)">Vault (12x12)</button>
+                    <button class="btn" style="background-color: #2980b9;" onclick="selectBuilding('Nuclear Vault', 12, 12, '#2980b9', '#ffffff', 0, 'Military', this)">Nuclear Vault (12x12)</button>
                 </div>
 
-                <!-- Sekce STATUES -->
+                <!-- STATUES -->
                 <div class="building-section">
                     <h3>Statues</h3>
-                    <button class="btn" onclick="selectBuilding('Gold Statue', 1, 1, '#8e44ad', '#ffffff', 20, 'Statue', this)">Gold Statue (R20)</button>
-                    <button class="btn" onclick="selectBuilding('Silver Statue', 1, 1, '#8e44ad', '#ffffff', 15, 'Statue', this)">Silver Statue (R15)</button>
-                    <button class="btn" onclick="selectBuilding('Manager Statue', 1, 1, '#8e44ad', '#ffffff', 18, 'Statue', this)">Manager Statue (R18)</button>
-                    <button class="btn" onclick="selectBuilding('Tank Statue', 1, 1, '#8e44ad', '#ffffff', 17, 'Statue', this)">Tank Statue (R17)</button>
-                    <button class="btn" onclick="selectBuilding('Helicopter Statue', 1, 1, '#8e44ad', '#ffffff', 17, 'Statue', this)">Helicopter Statue (R17)</button>
-                    <button class="btn" onclick="selectBuilding('Spider Mech Statue', 1, 1, '#8e44ad', '#ffffff', 15, 'Statue', this)">Spider Mech Statue (R15)</button>
-                    <button class="btn" onclick="selectBuilding('Soldier Statue', 1, 1, '#8e44ad', '#ffffff', 15, 'Statue', this)">Soldier Statue (R15)</button>
+                    <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Gold Statue', 1, 1, '#8e44ad', '#ffffff', 20, 'Statue', this)">Gold Statue (R20)</button>
+                    <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Silver Statue', 1, 1, '#8e44ad', '#ffffff', 15, 'Statue', this)">Silver Statue (R15)</button>
+                    <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Manager Statue', 1, 1, '#8e44ad', '#ffffff', 18, 'Statue', this)">Manager Statue (R18)</button>
+                    <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Tank Statue', 1, 1, '#8e44ad', '#ffffff', 17, 'Statue', this)">Tank Statue (R17)</button>
+                    <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Helicopter Statue', 1, 1, '#8e44ad', '#ffffff', 17, 'Statue', this)">Helicopter Statue (R17)</button>
+                    <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Spider Mech Statue', 1, 1, '#8e44ad', '#ffffff', 15, 'Statue', this)">Spider Mech Statue (R15)</button>
+                    <button class="btn" style="background-color: #8e44ad;" onclick="selectBuilding('Soldier Statue', 1, 1, '#8e44ad', '#ffffff', 15, 'Statue', this)">Soldier Statue (R15)</button>
                 </div>
 
-                <!-- Sekce DECOR -->
+                <!-- DECOR -->
                 <div class="building-section">
                     <h3>Decor & Utility</h3>
-                    <button class="btn" onclick="selectBuilding('Titan Workshop', 12, 12, '#f39c12', '#ffffff', 0, 'Decor', this)">Titan Workshop (12x12)</button>
-                    <button class="btn" onclick="selectBuilding('Research Booster', 12, 14, '#f39c12', '#ffffff', 0, 'Decor', this)">Research Booster (12x14)</button>
-                    <button class="btn" onclick="selectBuilding('Builder Control', 8, 12, '#f39c12', '#ffffff', 0, 'Decor', this)">Builder Control (8x12)</button>
-                    <button class="btn" onclick="selectBuilding('Workshop', 4, 4, '#f39c12', '#ffffff', 0, 'Decor', this)">Workshop (4x4)</button>
+                    
+                    <!-- PŘEPÍNATELNÝ BLOK: WORKSHOPY -->
+                    <div class="upgrade-container">
+                        <div class="upgrade-tabs">
+                            <button class="tab-btn active" onclick="switchUpgradeTab(this, 'ws-v1')">Základní</button>
+                            <button class="tab-btn" onclick="switchUpgradeTab(this, 'ws-v2')">Upgraded</button>
+                            <button class="tab-btn" onclick="switchUpgradeTab(this, 'ws-v3')">Titan</button>
+                        </div>
+                        <div id="ws-v1">
+                            <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Workshop', 4, 4, '#f39c12', '#ffffff', 0, 'Decor', this)">Workshop (4x4)</button>
+                        </div>
+                        <div id="ws-v2" style="display: none;">
+                            <button class="btn" style="background-color: #e67e22;" onclick="selectBuilding('Upgraded Workshop', 10, 13, '#e67e22', '#ffffff', 0, 'Decor', this)">Upgraded Workshop (10x13)</button>
+                        </div>
+                        <div id="ws-v3" style="display: none;">
+                            <button class="btn" style="background-color: #d35400;" onclick="selectBuilding('Titan Workshop', 12, 12, '#d35400', '#ffffff', 0, 'Decor', this)">Titan Workshop (12x12)</button>
+                        </div>
+                    </div>
+
+                    <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Crafting', 8, 9, '#f39c12', '#ffffff', 0, 'Decor', this)">Crafting (8x9)</button>
+                    <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Club Hub', 8, 10, '#f39c12', '#ffffff', 0, 'Decor', this)">Club Hub (8x10)</button>
+                    <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('General Residence', 13, 17, '#f39c12', '#ffffff', 0, 'Decor', this)">General Residence (13x17)</button>
+                    <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Command Center', 12, 12, '#f39c12', '#ffffff', 0, 'Decor', this)">Command Center (12x12)</button>
+                    <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Research Booster', 12, 14, '#f39c12', '#ffffff', 0, 'Decor', this)">Research Booster (12x14)</button>
+                    <button class="btn" style="background-color: #f39c12;" onclick="selectBuilding('Builder Control', 8, 12, '#f39c12', '#ffffff', 0, 'Decor', this)">Builder Control (8x12)</button>
                 </div>
             </div>
         </div>
@@ -281,7 +345,6 @@
         </div>
     </div>
 
-    <!-- Hlavní skript aplikační logiky -->
     <script src="app.js"></script>
 </body>
 </html>
