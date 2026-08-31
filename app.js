@@ -220,8 +220,17 @@ let previewGroup = new THREE.Group();
 previewGroup.visible = false;
 scene.add(previewGroup);
 
-let previewMat = new THREE.MeshBasicMaterial({ color: currentColorStr, transparent: true, opacity: 0.5 });
+// UPRAVENO: Náhledovému materiálu jsme vypnuli depthTest a nastavili renderOrder, aby prosvítal skrz ostatní objektu
+let previewMat = new THREE.MeshBasicMaterial({ 
+    color: currentColorStr, 
+    transparent: true, 
+    opacity: 0.6,
+    depthTest: false,
+    depthWrite: false
+});
+
 let previewMesh = new THREE.Mesh(new THREE.BoxGeometry(getCurrentWidth(), 1, getCurrentDepth()), previewMat);
+previewMesh.renderOrder = 9999;
 previewGroup.add(previewMesh);
 let previewRadiusRing = null;
 
@@ -243,8 +252,9 @@ function updatePreviewMesh() {
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
-    previewMesh = new THREE.Mesh(new THREE.BoxGeometry(curW, 1, curD), previewMat);
-    previewMesh.position.set(0, 0.5, 0);
+    previewMesh = new THREE.Mesh(new THREE.BoxGeometry(curW, 1.5, curD), previewMat);
+    previewMesh.renderOrder = 9999;
+    previewMesh.position.set(0, 0.75, 0);
     previewGroup.add(previewMesh);
 
     if (currentRadius > 0) {
@@ -620,22 +630,19 @@ window.addEventListener('pointerup', (event) => {
 
     raycaster.setFromCamera(mouse, camera);
 
-    // Správně oddělená logika pravého tlačítka
     if (event.button === 2) {
         if (!hasMovedMouse) {
             const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
             const intersects = raycaster.intersectObjects(buildingMeshes);
 
             if (intersects.length > 0) {
-                // 1. Pokud bylo kliknuto na konkrétní budovu, smaže se JEN tato budova
                 const hitMesh = intersects[0].object;
                 const buildingGroup = hitMesh.parent;
                 scene.remove(buildingGroup);
                 placedBuildings.splice(placedBuildings.indexOf(buildingGroup), 1);
                 recalculateStatueBoosts();
-                updatePreviewPosition(); // Obnovíme stav náhledu na mapě
+                updatePreviewPosition();
             } else if (currentName) {
-                // 2. Pouze pokud bylo kliknuto do prázdna, zruší se výběr z kurzoru
                 deselectBuilding();
             }
         }
