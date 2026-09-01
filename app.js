@@ -155,7 +155,14 @@ gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
 const customGrid = new THREE.LineSegments(gridGeo, gridMat);
 scene.add(customGrid);
 
-const mathPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+// Neviditelná dopadová plocha pro přesný výpočet zásahu paprsku myši
+const raycastPlaneGeo = new THREE.PlaneGeometry(gridWidth * 2, gridHeight * 2);
+raycastPlaneGeo.rotateX(-Math.PI / 2);
+const raycastPlaneMesh = new THREE.Mesh(
+    raycastPlaneGeo, 
+    new THREE.MeshBasicMaterial({ visible: false })
+);
+scene.add(raycastPlaneMesh);
 
 // === POMOCNÉ FUNKCE ===
 function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
@@ -845,27 +852,29 @@ function updateMousePosition(event) {
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 }
 
-// === PŘESNÝ VÝPOČET POZICE SLEDUSÍCÍ KURZOR MYŠI ===
+// Přesný výpočet souřadnic mřížky přímo pod kurzorem myši
 function getGridCoordinatesFromMouse(event) {
     if (event) updateMousePosition(event);
 
     camera.updateMatrixWorld();
     raycaster.setFromCamera(mouse, camera);
 
-    const targetVector = new THREE.Vector3();
-    const hit = raycaster.ray.intersectPlane(mathPlane, targetVector);
-    
-    if (!hit) return null;
+    const intersects = raycaster.intersectObject(raycastPlaneMesh);
+    if (intersects.length === 0) return null;
+
+    const hit = intersects[0].point;
 
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
-    // Přesné uzamčení do mřížky podle středu a velikosti budovy
-    let posX = Math.floor((hit.x + (curW % 8 === 0 ? 0 : tileSize / 2)) / tileSize) * tileSize;
-    let posZ = Math.floor((hit.z + (curD % 8 === 0 ? 0 : tileSize / 2)) / tileSize) * tileSize;
+    let rawX = hit.x - curW / 2;
+    let rawZ = hit.z - curD / 2;
 
-    if ((curW / tileSize) % 2 !== 0) posX += tileSize / 2;
-    if ((curD / tileSize) % 2 !== 0) posZ += tileSize / 2;
+    let gridX = Math.round(rawX / tileSize) * tileSize;
+    let gridZ = Math.round(rawZ / tileSize) * tileSize;
+
+    let posX = gridX + curW / 2;
+    let posZ = gridZ + curD / 2;
 
     const maxX = (gridWidth / 2) - (curW / 2);
     const maxZ = (gridHeight / 2) - (curD / 2);
