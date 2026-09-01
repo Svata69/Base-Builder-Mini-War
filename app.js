@@ -562,27 +562,6 @@ function checkCollision(posX, posZ, w, d, ignoreBuildings = []) {
     return false;
 }
 
-function tryPlaceBuilding() {
-    if (!canPlace || !currentName) return;
-
-    const curW = getCurrentWidth();
-    const curD = getCurrentDepth();
-
-    const buildingGroup = createBuildingMesh(
-        currentName, curW, curD, currentColorStr, 
-        currentTextColor, currentRadius, currentCategory
-    );
-    buildingGroup.position.copy(previewGroup.position);
-    scene.add(buildingGroup);
-    placedBuildings.push(buildingGroup);
-
-    recalculateStatueBoosts();
-    saveHistoryState();
-
-    canPlace = false;
-    previewMat.color.setStyle('#ff0000');
-}
-
 // === VYBERANÍ A KOPÍROVÁNÍ ===
 function selectPlacedBuilding(buildingGroup, add = false) {
     if (!add) deselectAllPlaced();
@@ -873,6 +852,46 @@ function getGridCoordinatesFromMouse(event) {
     return { x: posX, z: posZ };
 }
 
+function updateLinePreview(start, end) {
+    previewGroup.clear();
+    previewGroup.visible = true;
+
+    const curW = getCurrentWidth();
+    const curD = getCurrentDepth();
+
+    const dx = Math.sign(end.x - start.x);
+    const dz = Math.sign(end.z - start.z);
+    const stepsX = Math.abs(end.x - start.x);
+    const stepsZ = Math.abs(end.z - start.z);
+    
+    const isHorizontal = stepsX >= stepsZ;
+    const maxSteps = isHorizontal ? stepsX : stepsZ;
+    const stepSize = isHorizontal ? curW : curD;
+
+    for (let i = 0; i <= maxSteps; i += stepSize) {
+        let cx = isHorizontal ? start.x + (i * dx) : start.x;
+        let cz = isHorizontal ? start.z : start.z + (i * dz);
+
+        const maxX = (gridWidth / 2) - (curW / 2);
+        const maxZ = (gridHeight / 2) - (curD / 2);
+        cx = Math.max(-maxX, Math.min(maxX, cx));
+        cz = Math.max(-maxZ, Math.min(maxZ, cz));
+
+        const isColliding = checkCollision(cx, cz, curW, curD);
+        const boxMat = new THREE.MeshBasicMaterial({ 
+            color: isColliding ? 0xff0000 : currentColorStr, 
+            transparent: true, 
+            opacity: 0.6,
+            depthTest: false,
+            depthWrite: false
+        });
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(curW, 1.5, curD), boxMat);
+        mesh.position.set(cx, 0.75, cz);
+        mesh.renderOrder = 9999;
+        previewGroup.add(mesh);
+    }
+}
+
 function placeBuildingLine(start, end) {
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
@@ -916,10 +935,15 @@ function placeBuildingLine(start, end) {
 }
 
 function updateLinePreviewPosition(event) {
-    updatePreviewPosition();
+    const endCoord = getGridCoordinatesFromMouse(event);
+    if (lineStartCoord && endCoord) {
+        updateLinePreview(lineStartCoord, endCoord);
+    }
 }
 
-function clearLinePreview() {}
+function clearLinePreview() {
+    updatePreviewPosition();
+}
 
 function updatePreviewPosition() {
     if (!currentName) {
@@ -953,10 +977,6 @@ function updatePreviewPosition() {
         } else {
             previewMat.color.setStyle(currentColorStr);
             canPlace = true;
-
-            if (isMouseDown && !isLineBuilding) {
-                tryPlaceBuilding();
-            }
         }
     }
 }
@@ -1031,6 +1051,7 @@ window.addEventListener('pointerdown', (event) => {
             if (gridCoord) {
                 isLineBuilding = true;
                 lineStartCoord = gridCoord;
+                updateLinePreview(lineStartCoord, gridCoord);
             }
             return;
         }
