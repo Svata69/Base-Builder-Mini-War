@@ -128,7 +128,7 @@ function updateCameraAspect() {
 }
 updateCameraAspect();
 
-// === MŘÍŽKA S 4x4 VIZUÁLNÍMI ČTVERCI A 1-JEDNOTKOVÝM KROKEM ===
+// === MŘÍŽKA S 4x4 VIZUÁLNími ČTVERCI A 1-JEDNOTKOVÝM KROKEM ===
 const boardGroup = new THREE.Group();
 const gridStep = 1;
 
@@ -891,6 +891,7 @@ function getGridCoordinatesFromMouse(event) {
     const curW = isBoxPlacing ? boxWidth : getCurrentWidth();
     const curD = isBoxPlacing ? boxDepth : getCurrentDepth();
 
+    // VŽDY SNAPUJE NA 1 JEDNOTKU (čtvereček v 4x4), nezávisle na velikosti budovy
     let snapX = Math.round(hitPoint.x / gridStep) * gridStep;
     let snapZ = Math.round(hitPoint.z / gridStep) * gridStep;
 
@@ -905,8 +906,8 @@ function getGridCoordinatesFromMouse(event) {
 
 function getBoxBuildingCoordinates(start, end, w, d) {
     const coords = [];
-    const stepX = end.x >= start.x ? w : -w;
-    const stepZ = end.z >= start.z ? d : -d;
+    const stepX = end.x >= start.x ? gridStep : -gridStep;
+    const stepZ = end.z >= start.z ? gridStep : -gridStep;
 
     for (let x = start.x; stepX > 0 ? x <= end.x + 0.001 : x >= end.x - 0.001; x += stepX) {
         for (let z = start.z; stepZ > 0 ? z <= end.z + 0.001 : z >= end.z - 0.001; z += stepZ) {
