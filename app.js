@@ -132,14 +132,6 @@ const groundPlane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ visib
 scene.add(groundPlane);
 
 // === POMOCNÉ FUNKCE ===
-function getEffectiveRadius(name, defaultRadius) {
-    const lower = name.toLowerCase();
-    if (lower.includes('spider') || lower.includes('tank') || lower.includes('helicopter') || lower.includes('soldier')) {
-        return 16;
-    }
-    return defaultRadius || 0;
-}
-
 function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -249,7 +241,7 @@ const placedBuildings = [];
 let selectedBuildings = [];
 let copiedBuildingData = null;
 
-// HISTORIE (UNDO/REDO)
+// HISTORIE
 const historyStack = [];
 let historyIndex = -1;
 
@@ -322,7 +314,6 @@ let previewMat = new THREE.MeshBasicMaterial({
 let previewMesh = new THREE.Mesh(new THREE.BoxGeometry(getCurrentWidth(), 1, getCurrentDepth()), previewMat);
 previewMesh.renderOrder = 9999;
 previewGroup.add(previewMesh);
-let previewRadiusRing = null;
 
 function deselectBuilding() {
     currentName = null;
@@ -347,8 +338,8 @@ function updatePreviewMesh() {
     previewMesh.position.set(0, 0.75, 0);
     previewGroup.add(previewMesh);
 
-    if (currentRadius > 0) {
-        previewRadiusRing = createRadiusRing(currentRadius);
+    if (currentRadius > 0 && currentCategory === 'Statue') {
+        const previewRadiusRing = createRadiusRing(currentRadius);
         if (previewRadiusRing) previewGroup.add(previewRadiusRing);
     }
 }
@@ -358,7 +349,7 @@ function selectBuilding(name, w, d, colorStr, textColor, radius, category, btn) 
     currentName = name;
     baseWidth = w;
     baseDepth = d;
-    currentRadius = getEffectiveRadius(name, radius);
+    currentRadius = radius || 0;
     currentCategory = category || 'Houses';
     isRotated = false;
     currentColorStr = colorStr;
@@ -380,6 +371,12 @@ function rotateBuilding() {
             b.userData.depth = oldW;
             b.userData.mainMesh.geometry.dispose();
             b.userData.mainMesh.geometry = new THREE.BoxGeometry(b.userData.width, 1.2, b.userData.depth);
+
+            const outline = b.getObjectByName('selectionOutline');
+            if (outline) {
+                outline.geometry.dispose();
+                outline.geometry = new THREE.BoxGeometry(b.userData.width + 0.2, 1.4, b.userData.depth + 0.2);
+            }
         });
         recalculateStatueBoosts();
         saveHistoryState();
@@ -393,7 +390,6 @@ function rotateBuilding() {
 function createBuildingMesh(name, w, d, colorStr, textColor, radius, category, boosts = null) {
     const group = new THREE.Group();
     const geo = new THREE.BoxGeometry(w, 1.2, d);
-    const effectiveRadius = getEffectiveRadius(name, radius);
 
     const topTexture = createTopTexture(name, colorStr, textColor, boosts);
 
@@ -406,16 +402,11 @@ function createBuildingMesh(name, w, d, colorStr, textColor, radius, category, b
     buildingMesh.position.set(0, 0.6, 0);
     group.add(buildingMesh);
 
-    if (effectiveRadius > 0) {
-        const ring = createRadiusRing(effectiveRadius);
-        if (ring) group.add(ring);
-    }
-
     group.userData = { 
         name: name,
         width: w, 
         depth: d, 
-        radius: effectiveRadius,
+        radius: radius || 0,
         category: category,
         colorStr: colorStr,
         textColor: textColor,
@@ -466,7 +457,7 @@ function recalculateStatueBoosts() {
             statues.forEach(statue => {
                 const stData = statue.userData;
                 const statueName = stData.name.toLowerCase();
-                const effectiveStatueRadius = getEffectiveRadius(stData.name, stData.radius);
+                const effectiveStatueRadius = stData.radius || 16;
 
                 const stX = statue.position.x;
                 const stZ = statue.position.z;
@@ -515,6 +506,7 @@ function recalculateStatueBoosts() {
     });
 
     updateBuildingStatsUI();
+    if (isStatueCoverageActive) refreshCoverageRings();
     saveCurrentSlot();
 }
 
@@ -561,13 +553,12 @@ function tryPlaceBuilding() {
     previewMat.color.setStyle('#ff0000');
 }
 
-// === MULTISELECT & KOPÍROVÁNÍ ===
+// === VYBERANÍ A KOPÍROVÁNÍ ===
 function selectPlacedBuilding(buildingGroup, add = false) {
     if (!add) deselectAllPlaced();
     if (!selectedBuildings.includes(buildingGroup)) {
         selectedBuildings.push(buildingGroup);
         
-        // Zvýraznění správné velikosti přímo okolo budovy
         const w = buildingGroup.userData.width;
         const d = buildingGroup.userData.depth;
         const boxGeo = new THREE.BoxGeometry(w + 0.2, 1.4, d + 0.2);
@@ -582,7 +573,11 @@ function selectPlacedBuilding(buildingGroup, add = false) {
 function deselectAllPlaced() {
     selectedBuildings.forEach(b => {
         const outline = b.getObjectByName('selectionOutline');
-        if (outline) b.remove(outline);
+        if (outline) {
+            b.remove(outline);
+            outline.geometry.dispose();
+            outline.material.dispose();
+        }
     });
     selectedBuildings = [];
 }
@@ -620,21 +615,50 @@ function pasteCopiedBuilding() {
     }
 }
 
-// === NÁSTROJE: STATUE COVERAGE & MEASURE TOOL ===
+// === KONTEXTOVÉ MENU FUNKCE ===
+function showContextMenu(x, y) {
+    const contextMenu = document.getElementById('context-menu');
+    if (contextMenu) {
+        contextMenu.style.display = 'flex';
+        contextMenu.style.flexDirection = 'column';
+        contextMenu.style.left = `${x}px`;
+        contextMenu.style.top = `${y}px`;
+    }
+}
+
+function hideContextMenu() {
+    const contextMenu = document.getElementById('context-menu');
+    if (contextMenu) contextMenu.style.display = 'none';
+}
+
+function contextCopy() { 
+    copySelectedBuilding(); 
+    pasteCopiedBuilding(); 
+    hideContextMenu(); 
+}
+
+function contextRotate() { 
+    rotateBuilding(); 
+    hideContextMenu(); 
+}
+
+function contextDelete() { 
+    deleteSelectedBuildings(); 
+    hideContextMenu(); 
+}
+
+// === DOSAH SOCH (ZAPNOUT / VYPNUT) ===
 let isStatueCoverageActive = false;
 let coverageRingsGroup = new THREE.Group();
 scene.add(coverageRingsGroup);
 
-function toggleStatueCoverage() {
-    isStatueCoverageActive = !isStatueCoverageActive;
-    const btn = document.getElementById('tool-coverage-btn');
-    if (btn) btn.classList.toggle('active', isStatueCoverageActive);
-
+function refreshCoverageRings() {
     coverageRingsGroup.clear();
     if (isStatueCoverageActive) {
         placedBuildings.forEach(b => {
-            if (b.userData.category === 'Statue' || b.userData.radius > 0) {
-                const ring = createRadiusRing(b.userData.radius);
+            if (b.userData.category === 'Statue') {
+                const radius = b.userData.radius || 16;
+                const ring = createRadiusRing(radius);
                 if (ring) {
                     ring.position.copy(b.position);
                     coverageRingsGroup.add(ring);
@@ -644,43 +668,14 @@ function toggleStatueCoverage() {
     }
 }
 
-let isMeasureToolActive = false;
-let measurePoints = [];
-let measureLine = null;
-
-function toggleMeasureTool() {
-    isMeasureToolActive = !isMeasureToolActive;
-    const btn = document.getElementById('tool-measure-btn');
-    if (btn) btn.classList.toggle('active', isMeasureToolActive);
-
-    if (!isMeasureToolActive && measureLine) {
-        scene.remove(measureLine);
-        measureLine = null;
-        measurePoints = [];
-    }
+function toggleStatueCoverage() {
+    isStatueCoverageActive = !isStatueCoverageActive;
+    const btn = document.getElementById('tool-coverage-btn');
+    if (btn) btn.classList.toggle('active', isStatueCoverageActive);
+    refreshCoverageRings();
 }
 
-function handleMeasureClick(point) {
-    if (!isMeasureToolActive) return;
-
-    measurePoints.push(point.clone());
-    if (measurePoints.length === 2) {
-        if (measureLine) scene.remove(measureLine);
-
-        const geom = new THREE.BufferGeometry().setFromPoints(measurePoints);
-        const mat = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 3 });
-        measureLine = new THREE.Line(geom, mat);
-        scene.add(measureLine);
-
-        const distance = measurePoints[0].distanceTo(measurePoints[1]).toFixed(1);
-        const tiles = (distance / tileSize).toFixed(1);
-        alert(`📏 Vzdálenost: ${distance} jednotek (${tiles} políček)`);
-
-        measurePoints = [];
-    }
-}
-
-// === EXPORT / IMPORT / SCREENSHOT ===
+// === EXPORT / IMPORT ===
 function takeScreenshot() {
     deselectAllPlaced();
     deselectBuilding();
@@ -735,7 +730,7 @@ function handleFileImport(e) {
     reader.readAsText(file);
 }
 
-// === ULOŽENÉ SLOTY ===
+// === SLOTY ===
 function saveCurrentSlot() {
     const saveData = placedBuildings.map(b => ({
         name: b.userData.name,
@@ -787,7 +782,7 @@ function clearCurrentSlot() {
     }
 }
 
-// === INTERAKCE A KLÁVESNICE ===
+// === KLÁVESNICE A ULOŽENÍ ===
 const keysPressed = {};
 
 window.addEventListener('keydown', (e) => {
@@ -809,7 +804,6 @@ window.addEventListener('keydown', (e) => {
         deleteSelectedBuildings();
     }
     
-    if (e.key === 'm' || e.key === 'M') toggleMeasureTool();
     if (e.key === 'g' || e.key === 'G') toggleStatueCoverage();
 
     if (e.ctrlKey && key === 'c') copySelectedBuilding();
@@ -822,38 +816,7 @@ window.addEventListener('keyup', (e) => {
     keysPressed[e.key.toLowerCase()] = false;
 });
 
-// === KONTEXTOVÉ MENU ===
-const contextMenu = document.getElementById('context-menu');
-
-function showContextMenu(x, y) {
-    if (contextMenu) {
-        contextMenu.style.display = 'block';
-        contextMenu.style.left = `${x}px`;
-        contextMenu.style.top = `${y}px`;
-    }
-}
-
-function hideContextMenu() {
-    if (contextMenu) contextMenu.style.display = 'none';
-}
-
-function contextCopy() { 
-    copySelectedBuilding(); 
-    pasteCopiedBuilding(); 
-    hideContextMenu(); 
-}
-
-function contextRotate() { 
-    rotateBuilding(); 
-    hideContextMenu(); 
-}
-
-function contextDelete() { 
-    deleteSelectedBuildings(); 
-    hideContextMenu(); 
-}
-
-// === MYŠ A POHYB KAMERY ===
+// === MYŠ A POHYB ===
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
@@ -964,13 +927,6 @@ window.addEventListener('pointerdown', (event) => {
 
     if (event.button === 0) {
         isMouseDown = true;
-        
-        raycaster.setFromCamera(mouse, camera);
-        const intersectsGround = raycaster.intersectObject(groundPlane);
-        if (intersectsGround.length > 0 && isMeasureToolActive) {
-            handleMeasureClick(intersectsGround[0].point);
-            return;
-        }
 
         const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
         const intersects = raycaster.intersectObjects(buildingMeshes);
