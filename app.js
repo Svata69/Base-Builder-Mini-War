@@ -1165,7 +1165,6 @@ window.addEventListener('resize', () => {
     camera.right = d * aspect;
     camera.top = d;
     camera.bottom = -d;
-    camera.updateProjectionManager && camera.updateProjectionManager();
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
