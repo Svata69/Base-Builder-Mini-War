@@ -154,10 +154,8 @@ gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
 const customGrid = new THREE.LineSegments(gridGeo, gridMat);
 scene.add(customGrid);
 
-const planeGeo = new THREE.PlaneGeometry(gridWidth, gridHeight);
-planeGeo.rotateX(-Math.PI / 2);
-const groundPlane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ visible: false }));
-scene.add(groundPlane);
+// Matematická rovina Y=0 pro přesný výpočet paprsku bez ohledu na velkost obrazovky
+const mathPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 // === POMOCNÉ FUNKCE ===
 function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
@@ -840,21 +838,24 @@ let isSelecting = false;
 let selectStartX = 0, selectStartY = 0;
 const selectionBox = document.getElementById('selection-box');
 
-// === OPRAVENÝ PŘEPOČET SOUŘADNIC MYŠI NA MŘÍŽKU ===
+// === ABSOLUTNĚ PŘESNÝ PŘEPOČET SOUŘADNIC POD KURZOREM ===
 function getGridCoordinatesFromMouse(event) {
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObject(groundPlane);
-    if (intersects.length === 0) return null;
+    const targetVector = new THREE.Vector3();
+    const hit = raycaster.ray.intersectPlane(mathPlane, targetVector);
+    
+    if (!hit) return null;
 
-    const hit = intersects[0].point;
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
-    let gridX = Math.floor((hit.x + gridWidth / 2) / tileSize) * tileSize - gridWidth / 2;
-    let gridZ = Math.floor((hit.z + gridHeight / 2) / tileSize) * tileSize - gridHeight / 2;
+    // Zarovnání na mřížku tileSize (4 jednotky)
+    let posX = Math.floor((hit.x + tileSize / 2) / tileSize) * tileSize;
+    let posZ = Math.floor((hit.z + tileSize / 2) / tileSize) * tileSize;
 
-    let posX = gridX + curW / 2;
-    let posZ = gridZ + curD / 2;
+    // Úprava offsetu pro sudé/liché velikosti budov
+    if ((curW / tileSize) % 2 === 0) posX = Math.round(hit.x / tileSize) * tileSize;
+    if ((curD / tileSize) % 2 === 0) posZ = Math.round(hit.z / tileSize) * tileSize;
 
     const maxX = (gridWidth / 2) - (curW / 2);
     const maxZ = (gridHeight / 2) - (curD / 2);
@@ -932,7 +933,6 @@ function placeBoxBuildings(start, end) {
     }
 }
 
-// === OPRAVENÁ AKTUALIZACE POZICE NÁHLEDU ===
 function updatePreviewPosition() {
     if (!currentName || isBoxPlacing) {
         previewGroup.visible = false;
@@ -1150,10 +1150,8 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Inicializace po načtení
 loadCurrentSlot();
 
-// === RENDER LOOP ===
 function animate() {
     requestAnimationFrame(animate);
     renderer.render(scene, camera);
