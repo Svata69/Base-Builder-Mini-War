@@ -261,9 +261,9 @@ let currentTextColor = '#ffffff';
 let canPlace = false;
 let isMouseDown = false;
 
-// Stav pro tažení řady (Drag-to-Line)
-let isLineBuilding = false;
-let lineStartCoord = null;
+// Stav pro tažení obdélníku budov
+let isBoxPlacing = false;
+let boxStartCoord = null;
 
 const placedBuildings = [];
 let selectedBuildings = [];
@@ -347,8 +347,8 @@ function deselectBuilding() {
     currentName = null;
     previewGroup.visible = false;
     isMouseDown = false;
-    isLineBuilding = false;
-    lineStartCoord = null;
+    isBoxPlacing = false;
+    boxStartCoord = null;
     document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
 }
 
@@ -852,32 +852,36 @@ function getGridCoordinatesFromMouse(event) {
     return { x: posX, z: posZ };
 }
 
-function updateLinePreview(start, end) {
+function getBoxBuildingCoordinates(start, end, curW, curD) {
+    const coords = [];
+    const startX = Math.min(start.x, end.x);
+    const endX = Math.max(start.x, end.x);
+    const startZ = Math.min(start.z, end.z);
+    const endZ = Math.max(start.z, end.z);
+
+    const maxLimitX = (gridWidth / 2) - (curW / 2);
+    const maxLimitZ = (gridHeight / 2) - (curD / 2);
+
+    for (let x = startX; x <= endX; x += curW) {
+        for (let z = startZ; z <= endZ; z += curD) {
+            let cx = Math.max(-maxLimitX, Math.min(maxLimitX, x));
+            let cz = Math.max(-maxLimitZ, Math.min(maxLimitZ, z));
+            coords.push({ x: cx, z: cz });
+        }
+    }
+    return coords;
+}
+
+function updateBoxPreview(start, end) {
     previewGroup.clear();
     previewGroup.visible = true;
 
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
+    const coords = getBoxBuildingCoordinates(start, end, curW, curD);
 
-    const dx = Math.sign(end.x - start.x);
-    const dz = Math.sign(end.z - start.z);
-    const stepsX = Math.abs(end.x - start.x);
-    const stepsZ = Math.abs(end.z - start.z);
-    
-    const isHorizontal = stepsX >= stepsZ;
-    const maxSteps = isHorizontal ? stepsX : stepsZ;
-    const stepSize = isHorizontal ? curW : curD;
-
-    for (let i = 0; i <= maxSteps; i += stepSize) {
-        let cx = isHorizontal ? start.x + (i * dx) : start.x;
-        let cz = isHorizontal ? start.z : start.z + (i * dz);
-
-        const maxX = (gridWidth / 2) - (curW / 2);
-        const maxZ = (gridHeight / 2) - (curD / 2);
-        cx = Math.max(-maxX, Math.min(maxX, cx));
-        cz = Math.max(-maxZ, Math.min(maxZ, cz));
-
-        const isColliding = checkCollision(cx, cz, curW, curD);
+    coords.forEach(pos => {
+        const isColliding = checkCollision(pos.x, pos.z, curW, curD);
         const boxMat = new THREE.MeshBasicMaterial({ 
             color: isColliding ? 0xff0000 : currentColorStr, 
             transparent: true, 
@@ -886,63 +890,35 @@ function updateLinePreview(start, end) {
             depthWrite: false
         });
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(curW, 1.5, curD), boxMat);
-        mesh.position.set(cx, 0.75, cz);
+        mesh.position.set(pos.x, 0.75, pos.z);
         mesh.renderOrder = 9999;
         previewGroup.add(mesh);
-    }
+    });
 }
 
-function placeBuildingLine(start, end) {
+function placeBoxBuildings(start, end) {
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
-
-    const dx = Math.sign(end.x - start.x);
-    const dz = Math.sign(end.z - start.z);
-    const stepsX = Math.abs(end.x - start.x);
-    const stepsZ = Math.abs(end.z - start.z);
-    
-    const isHorizontal = stepsX >= stepsZ;
-    const maxSteps = isHorizontal ? stepsX : stepsZ;
-    const stepSize = isHorizontal ? curW : curD;
-
+    const coords = getBoxBuildingCoordinates(start, end, curW, curD);
     let placedAny = false;
 
-    for (let i = 0; i <= maxSteps; i += stepSize) {
-        let cx = isHorizontal ? start.x + (i * dx) : start.x;
-        let cz = isHorizontal ? start.z : start.z + (i * dz);
-
-        const maxX = (gridWidth / 2) - (curW / 2);
-        const maxZ = (gridHeight / 2) - (curD / 2);
-        cx = Math.max(-maxX, Math.min(maxX, cx));
-        cz = Math.max(-maxZ, Math.min(maxZ, cz));
-
-        if (!checkCollision(cx, cz, curW, curD)) {
+    coords.forEach(pos => {
+        if (!checkCollision(pos.x, pos.z, curW, curD)) {
             const buildingGroup = createBuildingMesh(
                 currentName, curW, curD, currentColorStr, 
                 currentTextColor, currentRadius, currentCategory
             );
-            buildingGroup.position.set(cx, 0, cz);
+            buildingGroup.position.set(pos.x, 0, pos.z);
             scene.add(buildingGroup);
             placedBuildings.push(buildingGroup);
             placedAny = true;
         }
-    }
+    });
 
     if (placedAny) {
         recalculateStatueBoosts();
         saveHistoryState();
     }
-}
-
-function updateLinePreviewPosition(event) {
-    const endCoord = getGridCoordinatesFromMouse(event);
-    if (lineStartCoord && endCoord) {
-        updateLinePreview(lineStartCoord, endCoord);
-    }
-}
-
-function clearLinePreview() {
-    updatePreviewPosition();
 }
 
 function updatePreviewPosition() {
@@ -1017,8 +993,11 @@ window.addEventListener('pointermove', (event) => {
         return;
     }
 
-    if (isLineBuilding && currentName) {
-        updateLinePreviewPosition(event);
+    if (isBoxPlacing && currentName) {
+        const currentCoord = getGridCoordinatesFromMouse(event);
+        if (boxStartCoord && currentCoord) {
+            updateBoxPreview(boxStartCoord, currentCoord);
+        }
         return;
     }
 
@@ -1049,9 +1028,9 @@ window.addEventListener('pointerdown', (event) => {
         if (currentName) {
             const gridCoord = getGridCoordinatesFromMouse(event);
             if (gridCoord) {
-                isLineBuilding = true;
-                lineStartCoord = gridCoord;
-                updateLinePreview(lineStartCoord, gridCoord);
+                isBoxPlacing = true;
+                boxStartCoord = gridCoord;
+                updateBoxPreview(boxStartCoord, gridCoord);
             }
             return;
         }
@@ -1085,14 +1064,14 @@ window.addEventListener('pointerup', (event) => {
     if (event.button === 0) {
         isMouseDown = false;
 
-        if (isLineBuilding && currentName) {
-            isLineBuilding = false;
+        if (isBoxPlacing && currentName) {
+            isBoxPlacing = false;
             const endCoord = getGridCoordinatesFromMouse(event);
-            if (lineStartCoord && endCoord) {
-                placeBuildingLine(lineStartCoord, endCoord);
+            if (boxStartCoord && endCoord) {
+                placeBoxBuildings(boxStartCoord, endCoord);
             }
-            lineStartCoord = null;
-            clearLinePreview();
+            boxStartCoord = null;
+            updatePreviewPosition();
             return;
         }
 
