@@ -2,9 +2,7 @@ let currentSlot = 1;
 const uiElement = document.getElementById('ui');
 
 if (uiElement) {
-    uiElement.addEventListener('wheel', (e) => {
-        e.stopPropagation();
-    });
+    uiElement.addEventListener('wheel', (e) => e.stopPropagation());
 }
 
 function switchUpgradeTab(tabBtn, targetId) {
@@ -40,7 +38,7 @@ function filterBuildings() {
     });
 }
 
-// Inicializace Three.js scény
+// === SCÉNA A KAMERA ===
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a3318);
 
@@ -53,11 +51,11 @@ const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1
 camera.position.set(0, 120, 0);
 camera.lookAt(0, 0, 0);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Mřížka a podklad
+// === MŘÍŽKA ===
 const boardGroup = new THREE.Group();
 const tileSize = 4;
 const cols = gridWidth / tileSize;
@@ -99,6 +97,7 @@ planeGeo.rotateX(-Math.PI / 2);
 const groundPlane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({ visible: false }));
 scene.add(groundPlane);
 
+// === POMOCNÉ FUNKCE ===
 function getEffectiveRadius(name, defaultRadius) {
     const lower = name.toLowerCase();
     if (lower.includes('spider') || lower.includes('tank') || lower.includes('helicopter') || lower.includes('soldier')) {
@@ -199,6 +198,7 @@ function createRadiusRing(radius) {
     return line;
 }
 
+// === PROMĚNNÉ STAVU ===
 let currentName = null;
 let baseWidth = 8;
 let baseDepth = 8;
@@ -212,15 +212,71 @@ let canPlace = false;
 let isMouseDown = false;
 
 const placedBuildings = [];
+let selectedBuildings = [];
+let copiedBuildingData = null;
+
+// HISTORIE (UNDO/REDO)
+const historyStack = [];
+let historyIndex = -1;
+
+function saveHistoryState() {
+    const state = placedBuildings.map(b => ({
+        name: b.userData.name,
+        x: b.position.x,
+        z: b.position.z,
+        w: b.userData.width,
+        d: b.userData.depth,
+        colorStr: b.userData.colorStr,
+        textColor: b.userData.textColor,
+        radius: b.userData.radius,
+        category: b.userData.category
+    }));
+
+    historyStack.splice(historyIndex + 1);
+    historyStack.push(JSON.stringify(state));
+    historyIndex++;
+}
+
+function undo() {
+    if (historyIndex > 0) {
+        historyIndex--;
+        restoreState(historyStack[historyIndex]);
+    }
+}
+
+function redo() {
+    if (historyIndex < historyStack.length - 1) {
+        historyIndex++;
+        restoreState(historyStack[historyIndex]);
+    }
+}
+
+function restoreState(jsonState) {
+    placedBuildings.forEach(b => scene.remove(b));
+    placedBuildings.length = 0;
+    deselectAllPlaced();
+
+    const data = JSON.parse(jsonState);
+    data.forEach(item => {
+        const buildingGroup = createBuildingMesh(
+            item.name, item.w, item.d, item.colorStr, 
+            item.textColor, item.radius, item.category
+        );
+        buildingGroup.position.set(item.x, 0, item.z);
+        scene.add(buildingGroup);
+        placedBuildings.push(buildingGroup);
+    });
+    recalculateStatueBoosts();
+}
 
 function getCurrentWidth() { return isRotated ? baseDepth : baseWidth; }
 function getCurrentDepth() { return isRotated ? baseWidth : baseDepth; }
 
+// NÁHLED STAVBY
 let previewGroup = new THREE.Group();
 previewGroup.visible = false;
 scene.add(previewGroup);
 
-// UPRAVENO: Náhledovému materiálu jsme vypnuli depthTest a nastavili renderOrder, aby prosvítal skrz ostatní objektu
 let previewMat = new THREE.MeshBasicMaterial({ 
     color: currentColorStr, 
     transparent: true, 
@@ -264,6 +320,7 @@ function updatePreviewMesh() {
 }
 
 function selectBuilding(name, w, d, colorStr, textColor, radius, category, btn) {
+    deselectAllPlaced();
     currentName = name;
     baseWidth = w;
     baseDepth = d;
@@ -282,30 +339,23 @@ function selectBuilding(name, w, d, colorStr, textColor, radius, category, btn) 
 }
 
 function rotateBuilding() {
-    if (!currentName) return;
-    isRotated = !isRotated;
-    updatePreviewMesh();
-    updatePreviewPosition();
+    if (selectedBuildings.length > 0) {
+        // Otočit vybranou budovu
+        selectedBuildings.forEach(b => {
+            const oldW = b.userData.width;
+            b.userData.width = b.userData.depth;
+            b.userData.depth = oldW;
+            b.userData.mainMesh.geometry.dispose();
+            b.userData.mainMesh.geometry = new THREE.BoxGeometry(b.userData.width, 1.2, b.userData.depth);
+        });
+        recalculateStatueBoosts();
+        saveHistoryState();
+    } else if (currentName) {
+        isRotated = !isRotated;
+        updatePreviewMesh();
+        updatePreviewPosition();
+    }
 }
-
-const keysPressed = {};
-
-window.addEventListener('keydown', (e) => {
-    if (document.activeElement.id === 'search-box') return;
-
-    keysPressed[e.key.toLowerCase()] = true;
-
-    if (e.key === 'r' || e.key === 'R') {
-        rotateBuilding();
-    }
-    if (e.key === 'Escape') {
-        deselectBuilding();
-    }
-});
-
-window.addEventListener('keyup', (e) => {
-    keysPressed[e.key.toLowerCase()] = false;
-});
 
 function createBuildingMesh(name, w, d, colorStr, textColor, radius, category, boosts = null) {
     const group = new THREE.Group();
@@ -374,13 +424,8 @@ function recalculateStatueBoosts() {
         data.boosts = { prodSpeed: 0, hpBonus: 0, dmgBonus: 0, vehicleHp: 0, flyingHp: 0 };
 
         if (data.category !== 'Statue' && data.name !== 'Vault' && data.name !== 'Nuclear Vault') {
-            let hasGold = false;
-            let hasSilver = false;
-            let hasManager = false;
-            let hasSpider = false;
-            let hasSoldier = false;
-            let hasTank = false;
-            let hasHelicopter = false;
+            let hasGold = false, hasSilver = false, hasManager = false;
+            let hasSpider = false, hasSoldier = false, hasTank = false, hasHelicopter = false;
 
             const bX = building.position.x;
             const bZ = building.position.z;
@@ -440,13 +485,14 @@ function recalculateStatueBoosts() {
     saveCurrentSlot();
 }
 
-function checkCollision(posX, posZ, w, d) {
+function checkCollision(posX, posZ, w, d, ignoreBuildings = []) {
     const newMinX = posX - w / 2;
     const newMaxX = posX + w / 2;
     const newMinZ = posZ - d / 2;
     const newMaxZ = posZ + d / 2;
 
     for (let b of placedBuildings) {
+        if (ignoreBuildings.includes(b)) continue;
         const bWidth = b.userData.width;
         const bDepth = b.userData.depth;
         const bMinX = b.position.x - bWidth / 2;
@@ -476,11 +522,180 @@ function tryPlaceBuilding() {
     placedBuildings.push(buildingGroup);
 
     recalculateStatueBoosts();
+    saveHistoryState();
 
     canPlace = false;
     previewMat.color.setStyle('#ff0000');
 }
 
+// === MULTISELECT & KOPÍROVÁNÍ ===
+function selectPlacedBuilding(buildingGroup, add = false) {
+    if (!add) deselectAllPlaced();
+    if (!selectedBuildings.includes(buildingGroup)) {
+        selectedBuildings.push(buildingGroup);
+        // Zvýraznění okraje
+        const box = new THREE.BoxHelper(buildingGroup.userData.mainMesh, 0x00ffff);
+        box.name = 'selectionOutline';
+        buildingGroup.add(box);
+    }
+}
+
+function deselectAllPlaced() {
+    selectedBuildings.forEach(b => {
+        const outline = b.getObjectByName('selectionOutline');
+        if (outline) b.remove(outline);
+    });
+    selectedBuildings = [];
+}
+
+function deleteSelectedBuildings() {
+    if (selectedBuildings.length === 0) return;
+    selectedBuildings.forEach(b => {
+        scene.remove(b);
+        const idx = placedBuildings.indexOf(b);
+        if (idx > -1) placedBuildings.splice(idx, 1);
+    });
+    selectedBuildings = [];
+    recalculateStatueBoosts();
+    saveHistoryState();
+}
+
+function copySelectedBuilding() {
+    if (selectedBuildings.length > 0) {
+        const target = selectedBuildings[0];
+        copiedBuildingData = { ...target.userData };
+    }
+}
+
+function pasteCopiedBuilding() {
+    if (copiedBuildingData) {
+        selectBuilding(
+            copiedBuildingData.name, 
+            copiedBuildingData.width, 
+            copiedBuildingData.depth, 
+            copiedBuildingData.colorStr, 
+            copiedBuildingData.textColor, 
+            copiedBuildingData.radius, 
+            copiedBuildingData.category
+        );
+    }
+}
+
+// === NÁSTROJE: STATUE COVERAGE & MEASURE TOOL ===
+let isStatueCoverageActive = false;
+let coverageRingsGroup = new THREE.Group();
+scene.add(coverageRingsGroup);
+
+function toggleStatueCoverage() {
+    isStatueCoverageActive = !isStatueCoverageActive;
+    const btn = document.getElementById('tool-coverage-btn');
+    if (btn) btn.classList.toggle('active', isStatueCoverageActive);
+
+    coverageRingsGroup.clear();
+    if (isStatueCoverageActive) {
+        placedBuildings.forEach(b => {
+            if (b.userData.category === 'Statue' || b.userData.radius > 0) {
+                const ring = createRadiusRing(b.userData.radius);
+                if (ring) {
+                    ring.position.copy(b.position);
+                    coverageRingsGroup.add(ring);
+                }
+            }
+        });
+    }
+}
+
+let isMeasureToolActive = false;
+let measurePoints = [];
+let measureLine = null;
+
+function toggleMeasureTool() {
+    isMeasureToolActive = !isMeasureToolActive;
+    const btn = document.getElementById('tool-measure-btn');
+    if (btn) btn.classList.toggle('active', isMeasureToolActive);
+
+    if (!isMeasureToolActive && measureLine) {
+        scene.remove(measureLine);
+        measureLine = null;
+        measurePoints = [];
+    }
+}
+
+function handleMeasureClick(point) {
+    if (!isMeasureToolActive) return;
+
+    measurePoints.push(point.clone());
+    if (measurePoints.length === 2) {
+        if (measureLine) scene.remove(measureLine);
+
+        const geom = new THREE.BufferGeometry().setFromPoints(measurePoints);
+        const mat = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 3 });
+        measureLine = new THREE.Line(geom, mat);
+        scene.add(measureLine);
+
+        const distance = measurePoints[0].distanceTo(measurePoints[1]).toFixed(1);
+        const tiles = (distance / tileSize).toFixed(1);
+        alert(`📏 Vzdálenost: ${distance} jednotek (${tiles} políček)`);
+
+        measurePoints = [];
+    }
+}
+
+// === EXPORT / IMPORT / SCREENSHOT ===
+function takeScreenshot() {
+    deselectAllPlaced();
+    deselectBuilding();
+    renderer.render(scene, camera);
+    const dataURL = renderer.domElement.toDataURL('image/png');
+    
+    const link = document.createElement('a');
+    link.download = `base-layout-slot-${currentSlot}.png`;
+    link.href = dataURL;
+    link.click();
+}
+
+function exportJSON() {
+    const data = placedBuildings.map(b => ({
+        name: b.userData.name,
+        x: b.position.x,
+        z: b.position.z,
+        w: b.userData.width,
+        d: b.userData.depth,
+        colorStr: b.userData.colorStr,
+        textColor: b.userData.textColor,
+        radius: b.userData.radius,
+        category: b.userData.category
+    }));
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.download = `base-slot-${currentSlot}.json`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+}
+
+function importJSON() {
+    document.getElementById('import-file').click();
+}
+
+function handleFileImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            restoreState(event.target.result);
+            saveHistoryState();
+            saveCurrentSlot();
+        } catch (err) {
+            alert("Chyba při načítání souboru JSON!");
+        }
+    };
+    reader.readAsText(file);
+}
+
+// === ULOŽENÉ SLONY ===
 function saveCurrentSlot() {
     const saveData = placedBuildings.map(b => ({
         name: b.userData.name,
@@ -503,21 +718,14 @@ function loadCurrentSlot() {
     const dataStr = localStorage.getItem(`base_slot_${currentSlot}`);
     if (dataStr) {
         try {
-            const saveData = JSON.parse(dataStr);
-            saveData.forEach(item => {
-                const buildingGroup = createBuildingMesh(
-                    item.name, item.w, item.d, item.colorStr, 
-                    item.textColor, item.radius, item.category
-                );
-                buildingGroup.position.set(item.x, 0, item.z);
-                scene.add(buildingGroup);
-                placedBuildings.push(buildingGroup);
-            });
+            restoreState(dataStr);
         } catch(e) {
             console.error("Chyba při načítání:", e);
         }
     }
-    recalculateStatueBoosts();
+    historyStack.length = 0;
+    historyIndex = -1;
+    saveHistoryState();
 }
 
 function switchSlot(slotNumber) {
@@ -532,18 +740,69 @@ function clearCurrentSlot() {
     if (confirm(`Opravdu chceš smazat celou základnu ve Slotu ${currentSlot}?`)) {
         placedBuildings.forEach(b => scene.remove(b));
         placedBuildings.length = 0;
+        deselectAllPlaced();
         localStorage.removeItem(`base_slot_${currentSlot}`);
         recalculateStatueBoosts();
+        saveHistoryState();
     }
 }
 
+// === INTERAKCE A KLÁVESNICE ===
+const keysPressed = {};
+
+window.addEventListener('keydown', (e) => {
+    if (document.activeElement.id === 'search-box') return;
+
+    const key = e.key.toLowerCase();
+    keysPressed[key] = true;
+
+    if (e.key === 'r' || e.key === 'R') rotateBuilding();
+    if (e.key === 'Escape') { deselectBuilding(); deselectAllPlaced(); hideContextMenu(); }
+    if (e.key === 'Delete') deleteSelectedBuildings();
+    if (e.key === 'm' || e.key === 'M') toggleMeasureTool();
+    if (e.key === 'g' || e.key === 'G') toggleStatueCoverage();
+
+    if (e.ctrlKey && key === 'c') copySelectedBuilding();
+    if (e.ctrlKey && key === 'v') pasteCopiedBuilding();
+    if (e.ctrlKey && key === 'z') { e.preventDefault(); undo(); }
+    if (e.ctrlKey && key === 'y') { e.preventDefault(); redo(); }
+});
+
+window.addEventListener('keyup', (e) => {
+    keysPressed[e.key.toLowerCase()] = false;
+});
+
+// === KONTEXTOVÉ MENU ===
+const contextMenu = document.getElementById('context-menu');
+
+function showContextMenu(x, y) {
+    if (contextMenu) {
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = `${x}px`;
+        contextMenu.style.top = `${y}px`;
+    }
+}
+
+function hideContextMenu() {
+    if (contextMenu) contextMenu.style.display = 'none';
+}
+
+function contextCopy() { copySelectedBuilding(); hideContextMenu(); }
+function contextRotate() { rotateBuilding(); hideContextMenu(); }
+function contextDelete() { deleteSelectedBuildings(); hideContextMenu(); }
+
+// === MYŠ A POHYB KAMERY ===
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
 let isPanning = false;
-let startMouseX = 0;
-let startMouseY = 0;
+let startMouseX = 0, startMouseY = 0;
 let hasMovedMouse = false;
+
+// Multiselect Drag Box
+let isSelecting = false;
+let selectStartX = 0, selectStartY = 0;
+const selectionBox = document.getElementById('selection-box');
 
 function updatePreviewPosition() {
     if (!currentName) {
@@ -586,6 +845,23 @@ function updatePreviewPosition() {
 }
 
 window.addEventListener('pointermove', (event) => {
+    // Multiselect drag
+    if (isSelecting && selectionBox) {
+        const currentX = event.clientX;
+        const currentY = event.clientY;
+
+        const width = Math.abs(currentX - selectStartX);
+        const height = Math.abs(currentY - selectStartY);
+        const left = Math.min(currentX, selectStartX);
+        const top = Math.min(currentY, selectStartY);
+
+        selectionBox.style.width = `${width}px`;
+        selectionBox.style.height = `${height}px`;
+        selectionBox.style.left = `${left}px`;
+        selectionBox.style.top = `${top}px`;
+        return;
+    }
+
     if (isPanning) {
         const deltaX = (event.clientX - startMouseX) * (1 / camera.zoom) * 0.2;
         const deltaY = (event.clientY - startMouseY) * (1 / camera.zoom) * 0.2;
@@ -607,12 +883,46 @@ window.addEventListener('pointermove', (event) => {
 
 window.addEventListener('pointerdown', (event) => {
     if (event.clientX > window.innerWidth - 320 && event.clientY < 600) return;
+    hideContextMenu();
 
+    // Shift + LMB = Multiselect box
+    if (event.button === 0 && event.shiftKey) {
+        isSelecting = true;
+        selectStartX = event.clientX;
+        selectStartY = event.clientY;
+        if (selectionBox) {
+            selectionBox.style.display = 'block';
+            selectionBox.style.width = '0px';
+            selectionBox.style.height = '0px';
+        }
+        return;
+    }
+
+    // LMB Stavění / Výběr
     if (event.button === 0) {
         isMouseDown = true;
+        
+        raycaster.setFromCamera(mouse, camera);
+        const intersectsGround = raycaster.intersectObject(groundPlane);
+        if (intersectsGround.length > 0 && isMeasureToolActive) {
+            handleMeasureClick(intersectsGround[0].point);
+            return;
+        }
+
+        const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
+        const intersects = raycaster.intersectObjects(buildingMeshes);
+
+        if (intersects.length > 0 && !currentName) {
+            const hitGroup = intersects[0].object.parent;
+            selectPlacedBuilding(hitGroup, event.ctrlKey);
+        } else if (!currentName) {
+            deselectAllPlaced();
+        }
+
         updatePreviewPosition();
     }
 
+    // RMB nebo MMB = Pan Kamery
     if (event.button === 2 || event.button === 1) {
         isPanning = true;
         startMouseX = event.clientX;
@@ -624,12 +934,36 @@ window.addEventListener('pointerdown', (event) => {
 window.addEventListener('pointerup', (event) => {
     if (event.button === 0) {
         isMouseDown = false;
+
+        // Dokončení multiselect dragu
+        if (isSelecting) {
+            isSelecting = false;
+            if (selectionBox) selectionBox.style.display = 'none';
+
+            deselectAllPlaced();
+            const minX = Math.min(event.clientX, selectStartX);
+            const maxX = Math.max(event.clientX, selectStartX);
+            const minY = Math.min(event.clientY, selectStartY);
+            const maxY = Math.max(event.clientY, selectStartY);
+
+            placedBuildings.forEach(b => {
+                const vector = b.position.clone().project(camera);
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+
+                if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                    selectPlacedBuilding(b, true);
+                }
+            });
+            return;
+        }
     }
 
     if (event.clientX > window.innerWidth - 320 && event.clientY < 600) return;
 
     raycaster.setFromCamera(mouse, camera);
 
+    // RMB Kontextové menu / zrušení
     if (event.button === 2) {
         if (!hasMovedMouse) {
             const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
@@ -638,10 +972,8 @@ window.addEventListener('pointerup', (event) => {
             if (intersects.length > 0) {
                 const hitMesh = intersects[0].object;
                 const buildingGroup = hitMesh.parent;
-                scene.remove(buildingGroup);
-                placedBuildings.splice(placedBuildings.indexOf(buildingGroup), 1);
-                recalculateStatueBoosts();
-                updatePreviewPosition();
+                selectPlacedBuilding(buildingGroup);
+                showContextMenu(event.clientX, event.clientY);
             } else if (currentName) {
                 deselectBuilding();
             }
@@ -651,11 +983,6 @@ window.addEventListener('pointerup', (event) => {
     if (event.button === 2 || event.button === 1) {
         isPanning = false;
     }
-});
-
-window.addEventListener('blur', () => {
-    isMouseDown = false;
-    isPanning = false;
 });
 
 window.addEventListener('contextmenu', event => event.preventDefault());
@@ -695,6 +1022,7 @@ function animate() {
 }
 animate();
 
+// WELCOME MODAL
 const welcomeModal = document.getElementById('welcome-modal');
 const closeModalBtn = document.getElementById('close-modal-btn');
 
