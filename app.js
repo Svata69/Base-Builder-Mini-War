@@ -111,7 +111,7 @@ const aspect = window.innerWidth / window.innerHeight;
 let d = 90;
 const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
 camera.position.set(0, 120, 0);
-camera.lookAt(0, 0, 0);
+camera.rotation.x = -Math.PI / 2; // Pevný pohled shora dolů
 camera.updateMatrixWorld();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -840,11 +840,11 @@ const selectionBox = document.getElementById('selection-box');
 
 function updateMousePosition(event) {
     if (!event) return;
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 }
 
-// === PŘESNÝ PŘEPOČET SOUŘADNIC ===
 function getGridCoordinatesFromMouse(event) {
     if (event) updateMousePosition(event);
 
@@ -859,7 +859,7 @@ function getGridCoordinatesFromMouse(event) {
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
-    // Přesné zarovnání na mřížku
+    // Zarovnání přímo k bodu dopadu
     let posX = Math.floor((hit.x + gridWidth / 2) / tileSize) * tileSize - gridWidth / 2 + curW / 2;
     let posZ = Math.floor((hit.z + gridHeight / 2) / tileSize) * tileSize - gridHeight / 2 + curD / 2;
 
