@@ -155,16 +155,6 @@ gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
 const customGrid = new THREE.LineSegments(gridGeo, gridMat);
 scene.add(customGrid);
 
-// Neviditelná dopadová plocha pro raycasting
-const raycastPlaneGeo = new THREE.PlaneGeometry(gridWidth * 2, gridHeight * 2);
-raycastPlaneGeo.rotateX(-Math.PI / 2);
-const raycastPlaneMesh = new THREE.Mesh(
-    raycastPlaneGeo, 
-    new THREE.MeshBasicMaterial({ visible: false })
-);
-scene.add(raycastPlaneMesh);
-
-// Matematická rovina pro bleskový výpočet souřadnic
 const groundMathPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 // === POMOCNÉ FUNKCE ===
@@ -859,7 +849,6 @@ function updateMousePosition(event) {
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 }
 
-// Bleskový výpočet souřadnic mřížky pomocí direktní geometrické roviny
 function getGridCoordinatesFromMouse(event) {
     if (event) updateMousePosition(event);
 
