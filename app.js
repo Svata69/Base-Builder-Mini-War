@@ -996,10 +996,13 @@ window.addEventListener('pointermove', (event) => {
         }
 
         camera.position.x -= deltaX;
-        camera.position.z += deltaY;
+        camera.position.z -= deltaY;
+        camera.updateMatrixWorld();
 
         startMouseX = event.clientX;
         startMouseY = event.clientY;
+        
+        updatePreviewPosition(event);
         return;
     }
 
