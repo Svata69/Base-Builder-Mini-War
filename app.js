@@ -100,11 +100,11 @@ function filterBuildings() {
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a3318);
 
-const gridWidth = 160;
-const gridHeight = 128;
+const gridWidth = 500;
+const gridHeight = 500;
 
 const aspect = window.innerWidth / window.innerHeight;
-let d = 90;
+let d = 150;
 const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
 camera.position.set(0, 120, 0);
 camera.lookAt(0, 0, 0);
@@ -140,10 +140,10 @@ const gridMat = new THREE.LineBasicMaterial({ color: 0x183815, transparent: true
 const gridGeo = new THREE.BufferGeometry();
 const points = [];
 
-for (let i = -gridWidth / 2; i <= gridWidth / 2; i++) {
+for (let i = -gridWidth / 2; i <= gridWidth / 2; i += tileSize) {
     points.push(i, 0, -gridHeight / 2, i, 0, gridHeight / 2);
 }
-for (let j = -gridHeight / 2; j <= gridHeight / 2; j++) {
+for (let j = -gridHeight / 2; j <= gridHeight / 2; j += tileSize) {
     points.push(-gridWidth / 2, 0, j, gridWidth / 2, 0, j);
 }
 gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
@@ -261,7 +261,7 @@ let currentTextColor = '#ffffff';
 let canPlace = false;
 let isMouseDown = false;
 
-// Stav pro tažení řady (Drag-to-Line)
+// Stav pro volné tažení řady/plochy v libovolném směru
 let isLineBuilding = false;
 let lineStartCoord = null;
 
@@ -852,32 +852,48 @@ function getGridCoordinatesFromMouse(event) {
     return { x: posX, z: posZ };
 }
 
-function updateLinePreview(start, end) {
-    previewGroup.clear();
-    previewGroup.visible = true;
-
-    const curW = getCurrentWidth();
-    const curD = getCurrentDepth();
-
-    const dx = Math.sign(end.x - start.x);
-    const dz = Math.sign(end.z - start.z);
-    const stepsX = Math.abs(end.x - start.x);
-    const stepsZ = Math.abs(end.z - start.z);
+// Výpočet souřadnic pro volné tažení v libovolném směru (včetně diagonály)
+function getLineCoordinates(start, end, curW, curD) {
+    const coords = [];
+    const dx = end.x - start.x;
+    const dz = end.z - start.z;
     
-    const isHorizontal = stepsX >= stepsZ;
-    const maxSteps = isHorizontal ? stepsX : stepsZ;
-    const stepSize = isHorizontal ? curW : curD;
+    const stepsX = Math.round(Math.abs(dx) / curW);
+    const stepsZ = Math.round(Math.abs(dz) / curD);
+    const maxSteps = Math.max(stepsX, stepsZ);
 
-    for (let i = 0; i <= maxSteps; i += stepSize) {
-        let cx = isHorizontal ? start.x + (i * dx) : start.x;
-        let cz = isHorizontal ? start.z : start.z + (i * dz);
+    for (let i = 0; i <= maxSteps; i++) {
+        const progressX = maxSteps === 0 ? 0 : (i / maxSteps) * dx;
+        const progressZ = maxSteps === 0 ? 0 : (i / maxSteps) * dz;
+
+        let cx = start.x + progressX;
+        let cz = start.z + progressZ;
 
         const maxX = (gridWidth / 2) - (curW / 2);
         const maxZ = (gridHeight / 2) - (curD / 2);
         cx = Math.max(-maxX, Math.min(maxX, cx));
         cz = Math.max(-maxZ, Math.min(maxZ, cz));
 
-        const isColliding = checkCollision(cx, cz, curW, curD);
+        cx = Math.floor(cx + 0.5) + (curW % 2 === 0 ? 0 : 0.5);
+        cz = Math.floor(cz + 0.5) + (curD % 2 === 0 ? 0 : 0.5);
+
+        if (coords.length === 0 || coords[coords.length - 1].x !== cx || coords[coords.length - 1].z !== cz) {
+            coords.push({ x: cx, z: cz });
+        }
+    }
+    return coords;
+}
+
+function updateLinePreview(start, end) {
+    previewGroup.clear();
+    previewGroup.visible = true;
+
+    const curW = getCurrentWidth();
+    const curD = getCurrentDepth();
+    const coords = getLineCoordinates(start, end, curW, curD);
+
+    coords.forEach(pos => {
+        const isColliding = checkCollision(pos.x, pos.z, curW, curD);
         const boxMat = new THREE.MeshBasicMaterial({ 
             color: isColliding ? 0xff0000 : currentColorStr, 
             transparent: true, 
@@ -886,47 +902,30 @@ function updateLinePreview(start, end) {
             depthWrite: false
         });
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(curW, 1.5, curD), boxMat);
-        mesh.position.set(cx, 0.75, cz);
+        mesh.position.set(pos.x, 0.75, pos.z);
         mesh.renderOrder = 9999;
         previewGroup.add(mesh);
-    }
+    });
 }
 
 function placeBuildingLine(start, end) {
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
-
-    const dx = Math.sign(end.x - start.x);
-    const dz = Math.sign(end.z - start.z);
-    const stepsX = Math.abs(end.x - start.x);
-    const stepsZ = Math.abs(end.z - start.z);
-    
-    const isHorizontal = stepsX >= stepsZ;
-    const maxSteps = isHorizontal ? stepsX : stepsZ;
-    const stepSize = isHorizontal ? curW : curD;
-
+    const coords = getLineCoordinates(start, end, curW, curD);
     let placedAny = false;
 
-    for (let i = 0; i <= maxSteps; i += stepSize) {
-        let cx = isHorizontal ? start.x + (i * dx) : start.x;
-        let cz = isHorizontal ? start.z : start.z + (i * dz);
-
-        const maxX = (gridWidth / 2) - (curW / 2);
-        const maxZ = (gridHeight / 2) - (curD / 2);
-        cx = Math.max(-maxX, Math.min(maxX, cx));
-        cz = Math.max(-maxZ, Math.min(maxZ, cz));
-
-        if (!checkCollision(cx, cz, curW, curD)) {
+    coords.forEach(pos => {
+        if (!checkCollision(pos.x, pos.z, curW, curD)) {
             const buildingGroup = createBuildingMesh(
                 currentName, curW, curD, currentColorStr, 
                 currentTextColor, currentRadius, currentCategory
             );
-            buildingGroup.position.set(cx, 0, cz);
+            buildingGroup.position.set(pos.x, 0, pos.z);
             scene.add(buildingGroup);
             placedBuildings.push(buildingGroup);
             placedAny = true;
         }
-    }
+    });
 
     if (placedAny) {
         recalculateStatueBoosts();
