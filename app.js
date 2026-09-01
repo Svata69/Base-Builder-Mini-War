@@ -107,16 +107,17 @@ scene.background = new THREE.Color(0x1a3318);
 const gridWidth = 160;
 const gridHeight = 128;
 
-const aspect = window.innerWidth / window.innerHeight;
-let d = 90;
-const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
-camera.position.set(0, 120, 0);
-camera.lookAt(0, 0, 0);
-
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
+
+const canvasRect = renderer.domElement.getBoundingClientRect();
+const aspect = canvasRect.width / canvasRect.height;
+let d = 90;
+const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+camera.position.set(0, 120, 0);
+camera.lookAt(0, 0, 0);
 
 // === MŘÍŽKA ===
 const boardGroup = new THREE.Group();
@@ -1161,14 +1162,16 @@ window.addEventListener('wheel', (event) => {
 });
 
 window.addEventListener('resize', () => {
-    const aspect = window.innerWidth / window.innerHeight;
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const rect = renderer.domElement.getBoundingClientRect();
+    const aspect = rect.width / rect.height;
     camera.left = -d * aspect;
     camera.right = d * aspect;
     camera.top = d;
     camera.bottom = -d;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
 loadCurrentSlot();
