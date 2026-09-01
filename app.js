@@ -111,8 +111,7 @@ const aspect = window.innerWidth / window.innerHeight;
 let d = 90;
 const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
 camera.position.set(0, 120, 0);
-camera.rotation.x = -Math.PI / 2;
-camera.updateMatrixWorld();
+camera.lookAt(0, 0, 0); // Opraveno: použití lookAt namísto rotation.x pro správné zarovnání mřížky
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
