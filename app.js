@@ -119,14 +119,46 @@ const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1
 camera.position.set(0, 120, 0);
 camera.lookAt(0, 0, 0);
 
-// === MŘÍŽKA ===
+// === MŘÍŽKA S 4x4 VNITŘNÍMI ČTVERCI ===
 const boardGroup = new THREE.Group();
 const tileSize = 4;
 const cols = gridWidth / tileSize;
 const rows = gridHeight / tileSize;
 
-const matGreen1 = new THREE.MeshBasicMaterial({ color: 0x2e6628 });
-const matGreen2 = new THREE.MeshBasicMaterial({ color: 0x255420 });
+function createGroundTileTexture(isEven) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = isEven ? '#2e6628' : '#255420';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Vnitřní 4x4 mřížka uvnitř jednoho čtverce
+    ctx.strokeStyle = isEven ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 3;
+
+    const step = 256 / 4;
+    for (let i = 1; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * step, 0);
+        ctx.lineTo(i * step, 256);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, i * step);
+        ctx.lineTo(256, i * step);
+        ctx.stroke();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    return texture;
+}
+
+const matGreen1 = new THREE.MeshBasicMaterial({ map: createGroundTileTexture(true) });
+const matGreen2 = new THREE.MeshBasicMaterial({ map: createGroundTileTexture(false) });
 const tileGeo = new THREE.PlaneGeometry(tileSize, tileSize);
 tileGeo.rotateX(-Math.PI / 2);
 
