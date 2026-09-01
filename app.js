@@ -7,10 +7,22 @@ if (uiElement) {
 
 // === OBSLUHA TUTORIÁLU A TABŮ ===
 function closeTutorial() {
-    // Skryje všechny možné kontejnery tutoriálu nebo ovládání
+    // 1. Vyhledá okno s tutoriálem podle nadpisu nebo obsahu a skryje ho
+    const allDivs = document.querySelectorAll('div, section, article, modal-dialog');
+    allDivs.forEach(el => {
+        if (el.textContent && (el.textContent.includes('Ovládání Plánovače') || el.textContent.includes('Rozumím'))) {
+            // Pokud je to přímo to okno (ne celý document body), skryjeme ho
+            if (el.children.length > 0 && el.tagName !== 'BODY' && el.tagName !== 'HTML') {
+                el.style.display = 'none';
+            }
+        }
+    });
+
+    // 2. Skryje pomocná tlačítka a známé třídy/ID
     const selectors = [
         '#tutorial', '#instructions', '#controls-panel', '#help-panel', '#guide',
-        '.tutorial-overlay', '.tutorial-box', '.instructions', '.help-overlay', '.controls-info'
+        '.tutorial-overlay', '.tutorial-box', '.instructions', '.help-overlay', '.controls-info',
+        '#universal-close-btn'
     ];
 
     selectors.forEach(selector => {
@@ -18,17 +30,26 @@ function closeTutorial() {
             el.style.display = 'none';
         });
     });
-
-    // Skryje pomocné tlačítko z obrazovky
-    const fallbackBtn = document.getElementById('universal-close-btn');
-    if (fallbackBtn) fallbackBtn.style.display = 'none';
 }
 
-// Přidání náhradního zavíracího tlačítka do pravého horního rohu
+// Připojení akcí po načtení stránky
 document.addEventListener('DOMContentLoaded', () => {
+    // Navázání akce přímo na zelené tlačítko "Rozumím" i jakákoliv jiná tlačítka v okně
+    document.body.addEventListener('click', (e) => {
+        const target = e.target;
+        if (target && (
+            target.textContent.trim() === 'Rozumím' || 
+            target.id === 'universal-close-btn' ||
+            target.classList.contains('close-btn')
+        )) {
+            closeTutorial();
+        }
+    });
+
+    // Červené náhradní tlačítko vpravo nahoře pro jistotu
     const fallbackBtn = document.createElement('button');
     fallbackBtn.id = 'universal-close-btn';
-    fallbackBtn.innerHTML = '❌ Zavřít ovládání / tutoriál';
+    fallbackBtn.innerHTML = '❌ Zavřít ovládání';
     fallbackBtn.style.position = 'fixed';
     fallbackBtn.style.top = '15px';
     fallbackBtn.style.right = '15px';
@@ -45,11 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     fallbackBtn.addEventListener('click', closeTutorial);
     document.body.appendChild(fallbackBtn);
-
-    // Navázání akce na jakákoliv tlačítka pro zavření v HTML
-    document.querySelectorAll('#close-tutorial-btn, .tutorial-close, .close-btn, #tutorial-close').forEach(btn => {
-        btn.addEventListener('click', closeTutorial);
-    });
 });
 
 function switchUpgradeTab(tabBtn, targetId) {
@@ -804,7 +820,7 @@ window.addEventListener('keydown', (e) => {
 
     if (e.key === 'r' || e.key === 'R') rotateBuilding();
     if (e.key === 'Escape') { 
-        closeTutorial(); // Klávesa ESC zavře ovládání/tutoriál
+        closeTutorial(); // Klávesa ESC schová ovládání
         deselectBuilding(); 
         deselectAllPlaced(); 
         hideContextMenu(); 
@@ -1025,7 +1041,7 @@ window.addEventListener('pointerup', (event) => {
             }
 
             const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
-            const intersects = raycaster.intersectObjects(buildingMeshes);
+            const intersects.length > 0 && (buildingMeshes);
 
             if (intersects.length > 0) {
                 const hitMesh = intersects[0].object;
