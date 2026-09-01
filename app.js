@@ -880,22 +880,17 @@ function getGridCoordinatesFromMouse(event) {
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
-    let rawX = hitPoint.x - curW / 2;
-    let rawZ = hitPoint.z - curD / 2;
-
-    let gridX = Math.round(rawX / gridStep) * gridStep;
-    let gridZ = Math.round(rawZ / gridStep) * gridStep;
-
-    let posX = gridX + curW / 2;
-    let posZ = gridZ + curD / 2;
+    // Opravený snapping pro 1-jednotkový grid a centrování podle rozměru budovy
+    let snapX = Math.round((hitPoint.x - curW / 2) / gridStep) * gridStep + curW / 2;
+    let snapZ = Math.round((hitPoint.z - curD / 2) / gridStep) * gridStep + curD / 2;
 
     const maxX = (gridWidth / 2) - (curW / 2);
     const maxZ = (gridHeight / 2) - (curD / 2);
 
-    posX = Math.max(-maxX, Math.min(maxX, posX));
-    posZ = Math.max(-maxZ, Math.min(maxZ, posZ));
+    snapX = Math.max(-maxX, Math.min(maxX, snapX));
+    snapZ = Math.max(-maxZ, Math.min(maxZ, snapZ));
 
-    return { x: posX, z: posZ };
+    return { x: snapX, z: snapZ };
 }
 
 function getBoxBuildingCoordinates(start, end, curW, curD) {
