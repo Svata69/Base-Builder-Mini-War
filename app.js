@@ -154,7 +154,6 @@ gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
 const customGrid = new THREE.LineSegments(gridGeo, gridMat);
 scene.add(customGrid);
 
-// Matematická rovina Y=0 pro přesný výpočet paprsku bez ohledu na velkost obrazovky
 const mathPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 // === POMOCNÉ FUNKCE ===
@@ -838,9 +837,16 @@ let isSelecting = false;
 let selectStartX = 0, selectStartY = 0;
 const selectionBox = document.getElementById('selection-box');
 
-// === ABSOLUTNĚ PŘESNÝ PŘEPOČET SOUŘADNIC POD KURZOREM ===
+// === ZUŠLECHŤOVANÝ PŘEPOČET SOUŘADNIC MYŠI A KAMERY ===
 function getGridCoordinatesFromMouse(event) {
+    if (event) {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    }
+
+    camera.updateMatrixWorld();
     raycaster.setFromCamera(mouse, camera);
+
     const targetVector = new THREE.Vector3();
     const hit = raycaster.ray.intersectPlane(mathPlane, targetVector);
     
@@ -849,13 +855,12 @@ function getGridCoordinatesFromMouse(event) {
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
-    // Zarovnání na mřížku tileSize (4 jednotky)
-    let posX = Math.floor((hit.x + tileSize / 2) / tileSize) * tileSize;
-    let posZ = Math.floor((hit.z + tileSize / 2) / tileSize) * tileSize;
+    // Přesný výpočet dlaždic mřížky (offset -gridWidth/2)
+    let col = Math.floor((hit.x + gridWidth / 2) / tileSize);
+    let row = Math.floor((hit.z + gridHeight / 2) / tileSize);
 
-    // Úprava offsetu pro sudé/liché velikosti budov
-    if ((curW / tileSize) % 2 === 0) posX = Math.round(hit.x / tileSize) * tileSize;
-    if ((curD / tileSize) % 2 === 0) posZ = Math.round(hit.z / tileSize) * tileSize;
+    let posX = -gridWidth / 2 + col * tileSize + curW / 2;
+    let posZ = -gridHeight / 2 + row * tileSize + curD / 2;
 
     const maxX = (gridWidth / 2) - (curW / 2);
     const maxZ = (gridHeight / 2) - (curD / 2);
@@ -933,13 +938,13 @@ function placeBoxBuildings(start, end) {
     }
 }
 
-function updatePreviewPosition() {
+function updatePreviewPosition(event) {
     if (!currentName || isBoxPlacing) {
         previewGroup.visible = false;
         return;
     }
 
-    const coord = getGridCoordinatesFromMouse();
+    const coord = getGridCoordinatesFromMouse(event);
 
     if (coord) {
         previewGroup.visible = true;
@@ -1004,7 +1009,7 @@ window.addEventListener('pointermove', (event) => {
         return;
     }
 
-    updatePreviewPosition();
+    updatePreviewPosition(event);
 });
 
 window.addEventListener('pointerdown', (event) => {
@@ -1038,6 +1043,8 @@ window.addEventListener('pointerdown', (event) => {
             return;
         }
 
+        camera.updateMatrixWorld();
+        raycaster.setFromCamera(mouse, camera);
         const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
         const intersects = raycaster.intersectObjects(buildingMeshes);
 
@@ -1048,7 +1055,7 @@ window.addEventListener('pointerdown', (event) => {
             deselectAllPlaced();
         }
 
-        updatePreviewPosition();
+        updatePreviewPosition(event);
     }
 
     if (event.button === 2 || event.button === 1) {
@@ -1075,7 +1082,7 @@ window.addEventListener('pointerup', (event) => {
             }
             boxStartCoord = null;
             updatePreviewMesh();
-            updatePreviewPosition();
+            updatePreviewPosition(event);
             return;
         }
 
@@ -1104,6 +1111,7 @@ window.addEventListener('pointerup', (event) => {
 
     if (event.clientX > window.innerWidth - 320 && event.clientY < 600) return;
 
+    camera.updateMatrixWorld();
     raycaster.setFromCamera(mouse, camera);
 
     if (event.button === 2) {
@@ -1137,7 +1145,7 @@ window.addEventListener('wheel', (event) => {
     camera.zoom -= event.deltaY * 0.001;
     camera.zoom = Math.max(0.2, Math.min(camera.zoom, 5));
     camera.updateProjectionMatrix();
-    updatePreviewPosition();
+    updatePreviewPosition(event);
 });
 
 window.addEventListener('resize', () => {
