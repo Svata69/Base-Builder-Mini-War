@@ -119,11 +119,12 @@ const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1
 camera.position.set(0, 120, 0);
 camera.lookAt(0, 0, 0);
 
-// === MŘÍŽKA S 4x4 VNITŘNÍMI ČTVERCI ===
+// === MŘÍŽKA A 1-JEDNOTKOVÉ SNAPOVÁNÍ ===
 const boardGroup = new THREE.Group();
-const tileSize = 4;
-const cols = gridWidth / tileSize;
-const rows = gridHeight / tileSize;
+const visualTileSize = 4; // Vizuální velký čtverec
+const gridStep = 1;      // 1-unit krok pro přesné umisťování (4x4 vnitřní políčka)
+const cols = gridWidth / visualTileSize;
+const rows = gridHeight / visualTileSize;
 
 function createGroundTileTexture(isEven) {
     const canvas = document.createElement('canvas');
@@ -134,7 +135,6 @@ function createGroundTileTexture(isEven) {
     ctx.fillStyle = isEven ? '#2e6628' : '#255420';
     ctx.fillRect(0, 0, 256, 256);
 
-    // Vnitřní 4x4 mřížka uvnitř jednoho čtverce
     ctx.strokeStyle = isEven ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 3;
 
@@ -159,29 +159,29 @@ function createGroundTileTexture(isEven) {
 
 const matGreen1 = new THREE.MeshBasicMaterial({ map: createGroundTileTexture(true) });
 const matGreen2 = new THREE.MeshBasicMaterial({ map: createGroundTileTexture(false) });
-const tileGeo = new THREE.PlaneGeometry(tileSize, tileSize);
+const tileGeo = new THREE.PlaneGeometry(visualTileSize, visualTileSize);
 tileGeo.rotateX(-Math.PI / 2);
 
 for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
         const isEven = (r + c) % 2 === 0;
         const tileMesh = new THREE.Mesh(tileGeo, isEven ? matGreen1 : matGreen2);
-        const x = -gridWidth / 2 + c * tileSize + tileSize / 2;
-        const z = -gridHeight / 2 + r * tileSize + tileSize / 2;
+        const x = -gridWidth / 2 + c * visualTileSize + visualTileSize / 2;
+        const z = -gridHeight / 2 + r * visualTileSize + visualTileSize / 2;
         tileMesh.position.set(x, -0.01, z);
         boardGroup.add(tileMesh);
     }
 }
 scene.add(boardGroup);
 
-const gridMat = new THREE.LineBasicMaterial({ color: 0x183815, transparent: true, opacity: 0.5 });
+const gridMat = new THREE.LineBasicMaterial({ color: 0x183815, transparent: true, opacity: 0.3 });
 const gridGeo = new THREE.BufferGeometry();
 const points = [];
 
-for (let i = -gridWidth / 2; i <= gridWidth / 2; i += tileSize) {
+for (let i = -gridWidth / 2; i <= gridWidth / 2; i += gridStep) {
     points.push(i, 0, -gridHeight / 2, i, 0, gridHeight / 2);
 }
-for (let j = -gridHeight / 2; j <= gridHeight / 2; j += tileSize) {
+for (let j = -gridHeight / 2; j <= gridHeight / 2; j += gridStep) {
     points.push(-gridWidth / 2, 0, j, gridWidth / 2, 0, j);
 }
 gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
@@ -528,24 +528,15 @@ function recalculateStatueBoosts() {
                 const stX = statue.position.x;
                 const stZ = statue.position.z;
 
-                const tileDistX = Math.abs(bX - stX) / tileSize;
-                const tileDistZ = Math.abs(bZ - stZ) / tileSize;
-
-                const maxTileRadius = Math.round(effectiveStatueRadius / tileSize);
-                const bHalfTilesW = (data.width / 2) / tileSize;
-                const bHalfTilesD = (data.depth / 2) / tileSize;
-
-                if (tileDistX <= maxTileRadius + bHalfTilesW && tileDistZ <= maxTileRadius + bHalfTilesD) {
-                    const exactGridDist = Math.sqrt(Math.pow(bX - stX, 2) + Math.pow(bZ - stZ, 2));
-                    if (exactGridDist <= effectiveStatueRadius + (tileSize * 0.25)) {
-                        if (statueName.includes('gold')) hasGold = true;
-                        if (statueName.includes('silver')) hasSilver = true;
-                        if (statueName.includes('manager')) hasManager = true;
-                        if (statueName.includes('spider')) hasSpider = true;
-                        if (statueName.includes('soldier')) hasSoldier = true;
-                        if (statueName.includes('tank')) hasTank = true;
-                        if (statueName.includes('helicopter')) hasHelicopter = true;
-                    }
+                const exactGridDist = Math.sqrt(Math.pow(bX - stX, 2) + Math.pow(bZ - stZ, 2));
+                if (exactGridDist <= effectiveStatueRadius + (gridStep * 0.25)) {
+                    if (statueName.includes('gold')) hasGold = true;
+                    if (statueName.includes('silver')) hasSilver = true;
+                    if (statueName.includes('manager')) hasManager = true;
+                    if (statueName.includes('spider')) hasSpider = true;
+                    if (statueName.includes('soldier')) hasSoldier = true;
+                    if (statueName.includes('tank')) hasTank = true;
+                    if (statueName.includes('helicopter')) hasHelicopter = true;
                 }
             });
 
@@ -895,8 +886,9 @@ function getGridCoordinatesFromMouse(event) {
     let rawX = hitPoint.x - curW / 2;
     let rawZ = hitPoint.z - curD / 2;
 
-    let gridX = Math.round(rawX / tileSize) * tileSize;
-    let gridZ = Math.round(rawZ / tileSize) * tileSize;
+    // Používáme gridStep = 1 pro 1-jednotkové přesné umisťování do 4x4 vnitřku
+    let gridX = Math.round(rawX / gridStep) * gridStep;
+    let gridZ = Math.round(rawZ / gridStep) * gridStep;
 
     let posX = gridX + curW / 2;
     let posZ = gridZ + curD / 2;
