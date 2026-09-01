@@ -65,7 +65,7 @@ canvas {
     padding: 7px 10px;
     border-radius: 4px;
     cursor: pointer;
-    text-align: left;
+    text-align: center;
     font-size: 12px;
     transition: all 0.2s;
     width: 100%;
@@ -101,7 +101,7 @@ canvas {
 
 #building-list {
     overflow-y: auto;
-    max-height: 40vh;
+    max-height: 35vh;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -143,7 +143,6 @@ canvas {
     outline: none;
 }
 
-/* Přepínatelné záložky pro vylepšení budov */
 .upgrade-container {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid #444;
@@ -178,7 +177,7 @@ canvas {
 }
 
 #stats-list {
-    max-height: 110px;
+    max-height: 100px;
     overflow-y: auto;
     font-size: 12px;
     background: rgba(0,0,0,0.3);
@@ -197,7 +196,6 @@ canvas {
     font-weight: bold;
 }
 
-/* Uvítací okno (Nápověda) */
 #welcome-modal {
     position: absolute;
     top: 50%;
@@ -207,7 +205,7 @@ canvas {
     border: 2px solid #555;
     border-radius: 10px;
     padding: 20px 25px;
-    width: 360px;
+    width: 380px;
     box-shadow: 0 0 20px rgba(0,0,0,0.8);
     z-index: 100;
 }
@@ -222,7 +220,7 @@ canvas {
 
 #welcome-modal ul {
     padding-left: 20px;
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.6;
     color: #ddd;
     margin-bottom: 0;
@@ -241,6 +239,41 @@ canvas {
     width: 100%;
 }
 
-#close-modal-btn:hover {
-    background: #2ecc71;
+/* Kontextové menu */
+.context-menu {
+    position: absolute;
+    display: none;
+    background: #222;
+    border: 1px solid #555;
+    border-radius: 5px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    z-index: 1000;
+    min-width: 140px;
+    overflow: hidden;
+}
+
+.context-menu .menu-item {
+    padding: 8px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #fff;
+    transition: background 0.2s;
+}
+
+.context-menu .menu-item:hover {
+    background: #3498db;
+}
+
+.context-menu .menu-item.danger:hover {
+    background: #e74c3c;
+}
+
+/* Multiselect box */
+#selection-box {
+    position: absolute;
+    border: 1px dashed #00ffff;
+    background: rgba(0, 255, 255, 0.15);
+    pointer-events: none;
+    display: none;
+    z-index: 99;
 }
