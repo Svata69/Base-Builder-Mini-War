@@ -111,7 +111,7 @@ const aspect = window.innerWidth / window.innerHeight;
 let d = 90;
 const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
 camera.position.set(0, 120, 0);
-camera.lookAt(0, 0, 0); // Opraveno: použití lookAt namísto rotation.x pro správné zarovnání mřížky
+camera.lookAt(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -844,6 +844,7 @@ const selectionBox = document.getElementById('selection-box');
 function updateMousePosition(event) {
     if (!event) return;
     const rect = renderer.domElement.getBoundingClientRect();
+    // Opraveno: použití rozměrů samotného plátna a jeho reálného rectu na obrazovce
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 }
