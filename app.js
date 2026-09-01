@@ -340,7 +340,6 @@ function selectBuilding(name, w, d, colorStr, textColor, radius, category, btn) 
 
 function rotateBuilding() {
     if (selectedBuildings.length > 0) {
-        // Otočit vybranou budovu
         selectedBuildings.forEach(b => {
             const oldW = b.userData.width;
             b.userData.width = b.userData.depth;
@@ -533,7 +532,6 @@ function selectPlacedBuilding(buildingGroup, add = false) {
     if (!add) deselectAllPlaced();
     if (!selectedBuildings.includes(buildingGroup)) {
         selectedBuildings.push(buildingGroup);
-        // Zvýraznění okraje
         const box = new THREE.BoxHelper(buildingGroup.userData.mainMesh, 0x00ffff);
         box.name = 'selectionOutline';
         buildingGroup.add(box);
@@ -675,7 +673,8 @@ function exportJSON() {
 }
 
 function importJSON() {
-    document.getElementById('import-file').click();
+    const fileInput = document.getElementById('import-file');
+    if (fileInput) fileInput.click();
 }
 
 function handleFileImport(e) {
@@ -695,7 +694,7 @@ function handleFileImport(e) {
     reader.readAsText(file);
 }
 
-// === ULOŽENÉ SLONY ===
+// === ULOŽENÉ SLOTY ===
 function saveCurrentSlot() {
     const saveData = placedBuildings.map(b => ({
         name: b.userData.name,
@@ -837,6 +836,7 @@ function updatePreviewPosition() {
             previewMat.color.setStyle(currentColorStr);
             canPlace = true;
 
+            // Plynulé roznášení během tažení se stisknutým levým tlačítkem
             if (isMouseDown) {
                 tryPlaceBuilding();
             }
@@ -845,6 +845,9 @@ function updatePreviewPosition() {
 }
 
 window.addEventListener('pointermove', (event) => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
     // Multiselect drag
     if (isSelecting && selectionBox) {
         const currentX = event.clientX;
@@ -866,17 +869,17 @@ window.addEventListener('pointermove', (event) => {
         const deltaX = (event.clientX - startMouseX) * (1 / camera.zoom) * 0.2;
         const deltaY = (event.clientY - startMouseY) * (1 / camera.zoom) * 0.2;
 
+        if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
+            hasMovedMouse = true;
+        }
+
         camera.position.x -= deltaX;
         camera.position.z -= deltaY;
 
         startMouseX = event.clientX;
         startMouseY = event.clientY;
-        hasMovedMouse = true;
         return;
     }
-
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
     updatePreviewPosition();
 });
@@ -922,7 +925,7 @@ window.addEventListener('pointerdown', (event) => {
         updatePreviewPosition();
     }
 
-    // RMB nebo MMB = Pan Kamery
+    // RMB nebo MMB = Pan Kamery (Zaznamená se začátek stisku)
     if (event.button === 2 || event.button === 1) {
         isPanning = true;
         startMouseX = event.clientX;
@@ -963,7 +966,7 @@ window.addEventListener('pointerup', (event) => {
 
     raycaster.setFromCamera(mouse, camera);
 
-    // RMB Kontextové menu / zrušení
+    // RMB Kontextové menu / Odznačení / Smazání
     if (event.button === 2) {
         if (!hasMovedMouse) {
             const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
@@ -1004,42 +1007,12 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-loadCurrentSlot();
-
-function updateCameraMovement() {
-    const moveSpeed = 1.5 / camera.zoom;
-
-    if (keysPressed['w'] || keysPressed['arrowup']) camera.position.z -= moveSpeed;
-    if (keysPressed['s'] || keysPressed['arrowdown']) camera.position.z += moveSpeed;
-    if (keysPressed['a'] || keysPressed['arrowleft']) camera.position.x -= moveSpeed;
-    if (keysPressed['d'] || keysPressed['arrowright']) camera.position.x += moveSpeed;
-}
-
+// Zajištění aktualizace renderovací smyčky scény
 function animate() {
     requestAnimationFrame(animate);
-    updateCameraMovement();
     renderer.render(scene, camera);
 }
 animate();
 
-// WELCOME MODAL
-const welcomeModal = document.getElementById('welcome-modal');
-const closeModalBtn = document.getElementById('close-modal-btn');
-
-if (welcomeModal) {
-    welcomeModal.addEventListener('pointerdown', (e) => e.stopPropagation());
-    welcomeModal.addEventListener('pointerup', (e) => e.stopPropagation());
-    welcomeModal.addEventListener('wheel', (e) => e.stopPropagation());
-
-    if (localStorage.getItem('hideWelcomeModal') === 'true') {
-        welcomeModal.style.display = 'none';
-    }
-}
-
-if (closeModalBtn) {
-    closeModalBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        welcomeModal.style.display = 'none';
-        localStorage.setItem('hideWelcomeModal', 'true');
-    });
-}
+// Načtení počátečních dat
+loadCurrentSlot();
