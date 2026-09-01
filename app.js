@@ -883,8 +883,8 @@ function getBoxBuildingCoordinates(start, end, curW, curD) {
     const minZ = Math.min(start.z, end.z);
     const maxZ = Math.max(start.z, end.z);
 
-    for (let x = minX; x <= maxX; x += curW) {
-        for (let z = minZ; z <= maxZ; z += curD) {
+    for (let x = minX; x <= maxX + 0.001; x += curW) {
+        for (let z = minZ; z <= maxZ + 0.001; z += curD) {
             coords.push({ x: Number(x.toFixed(2)), z: Number(z.toFixed(2)) });
         }
     }
@@ -1165,6 +1165,7 @@ window.addEventListener('resize', () => {
     camera.right = d * aspect;
     camera.top = d;
     camera.bottom = -d;
+    camera.updateProjectionManager && camera.updateProjectionManager();
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
