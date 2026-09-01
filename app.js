@@ -1,3 +1,27 @@
+const translations = {
+    cs: {
+        noBuildings: "Žádné budovy",
+        tutorialTitle: "Ovládání Plánovače",
+        understandBtn: "Rozumím",
+        clearConfirm: "Opravdu chceš smazat celou základnu ve Slotu",
+        jsonError: "Chyba při načítání souboru JSON!"
+    },
+    en: {
+        noBuildings: "No buildings",
+        tutorialTitle: "Planner Controls",
+        understandBtn: "Got it",
+        clearConfirm: "Do you really want to delete the whole base in Slot",
+        jsonError: "Error loading JSON file!"
+    }
+};
+
+const userLang = (navigator.language || navigator.userLanguage || 'en').substring(0, 2);
+const currentLang = translations[userLang] ? userLang : 'en';
+
+function t(key) {
+    return translations[currentLang][key] || translations['en'][key] || key;
+}
+
 let currentSlot = 1;
 const uiElement = document.getElementById('ui');
 
@@ -9,7 +33,7 @@ if (uiElement) {
 function closeTutorial() {
     const allElements = document.querySelectorAll('*');
     allElements.forEach(el => {
-        if (el.children.length < 5 && el.textContent && el.textContent.includes('Ovládání Plánovače')) {
+        if (el.children.length < 5 && el.textContent && el.textContent.includes(t('tutorialTitle'))) {
             let parent = el;
             while (parent && parent.tagName !== 'BODY') {
                 if (parent.classList.contains('modal') || parent.classList.contains('overlay') || parent.tagName === 'DIV') {
@@ -34,7 +58,7 @@ function closeTutorial() {
 
 document.addEventListener('click', (e) => {
     const btn = e.target.closest('button, .btn, div');
-    if (btn && btn.textContent && btn.textContent.includes('Rozumím')) {
+    if (btn && btn.textContent && btn.textContent.includes(t('understandBtn'))) {
         closeTutorial();
     }
 });
@@ -435,7 +459,7 @@ function updateBuildingStatsUI() {
 
     const names = Object.keys(counts);
     if (names.length === 0) {
-        statsList.innerHTML = '<i>Žádné budovy</i>';
+        statsList.innerHTML = `<i>${t('noBuildings')}</i>`;
         return;
     }
 
@@ -730,7 +754,7 @@ function handleFileImport(e) {
             saveHistoryState();
             saveCurrentSlot();
         } catch (err) {
-            alert("Chyba při načítání souboru JSON!");
+            alert(t('jsonError'));
         }
     };
     reader.readAsText(file);
@@ -778,7 +802,7 @@ function switchSlot(slotNumber) {
 }
 
 function clearCurrentSlot() {
-    if (confirm(`Opravdu chceš smazat celou základnu ve Slotu ${currentSlot}?`)) {
+    if (confirm(`${t('clearConfirm')} ${currentSlot}?`)) {
         placedBuildings.forEach(b => scene.remove(b));
         placedBuildings.length = 0;
         deselectAllPlaced();
