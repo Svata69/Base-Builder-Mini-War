@@ -121,7 +121,7 @@ camera.lookAt(0, 0, 0);
 
 // === MŘÍŽKA S 4x4 VIZUÁLNÍMI ČTVERCI A 1-JEDNOTKOVÝM KROKEM ===
 const boardGroup = new THREE.Group();
-const gridStep = 1; // 1-unit krok pro maximálně těsné skládání
+const gridStep = 1;
 
 function createGroundTileTexture(isEven) {
     const canvas = document.createElement('canvas');
@@ -296,6 +296,8 @@ let isMouseDown = false;
 let isBoxPlacing = false;
 let boxStartCoord = null;
 let lastCoordKey = null;
+let boxWidth = 0;
+let boxDepth = 0;
 
 const placedBuildings = [];
 let selectedBuildings = [];
@@ -443,7 +445,7 @@ function rotateBuilding() {
         });
         recalculateStatueBoosts();
         saveHistoryState();
-    } else if (currentName) {
+    } else if (currentName && !isBoxPlacing) {
         isRotated = !isRotated;
         updatePreviewMesh();
         updatePreviewPosition();
@@ -877,10 +879,9 @@ function getGridCoordinatesFromMouse(event) {
     const intersect = raycaster.ray.intersectPlane(groundMathPlane, hitPoint);
     if (!intersect) return null;
 
-    const curW = getCurrentWidth();
-    const curD = getCurrentDepth();
+    const curW = isBoxPlacing ? boxWidth : getCurrentWidth();
+    const curD = isBoxPlacing ? boxDepth : getCurrentDepth();
 
-    // Opravený snapping pro 1-jednotkový grid a centrování podle rozměru budovy
     let snapX = Math.round((hitPoint.x - curW / 2) / gridStep) * gridStep + curW / 2;
     let snapZ = Math.round((hitPoint.z - curD / 2) / gridStep) * gridStep + curD / 2;
 
@@ -893,15 +894,15 @@ function getGridCoordinatesFromMouse(event) {
     return { x: snapX, z: snapZ };
 }
 
-function getBoxBuildingCoordinates(start, end, curW, curD) {
+function getBoxBuildingCoordinates(start, end, w, d) {
     const coords = [];
     const minX = Math.min(start.x, end.x);
     const maxX = Math.max(start.x, end.x);
     const minZ = Math.min(start.z, end.z);
     const maxZ = Math.max(start.z, end.z);
 
-    for (let x = minX; x <= maxX + 0.001; x += curW) {
-        for (let z = minZ; z <= maxZ + 0.001; z += curD) {
+    for (let x = minX; x <= maxX + 0.001; x += w) {
+        for (let z = minZ; z <= maxZ + 0.001; z += d) {
             coords.push({ x: Number(x.toFixed(2)), z: Number(z.toFixed(2)) });
         }
     }
@@ -912,16 +913,14 @@ function updateBoxPreview(start, end) {
     previewGroup.clear();
     previewGroup.visible = true;
 
-    const curW = getCurrentWidth();
-    const curD = getCurrentDepth();
-    const coords = getBoxBuildingCoordinates(start, end, curW, curD);
+    const coords = getBoxBuildingCoordinates(start, end, boxWidth, boxDepth);
 
-    const sharedGeo = new THREE.BoxGeometry(curW, 1.5, curD);
+    const sharedGeo = new THREE.BoxGeometry(boxWidth, 1.5, boxDepth);
     const validMat = new THREE.MeshBasicMaterial({ color: currentColorStr, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false });
     const invalidMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false });
 
     coords.forEach(pos => {
-        const isColliding = checkCollision(pos.x, pos.z, curW, curD);
+        const isColliding = checkCollision(pos.x, pos.z, boxWidth, boxDepth);
         const mesh = new THREE.Mesh(sharedGeo, isColliding ? invalidMat : validMat);
         mesh.position.set(pos.x, 0.75, pos.z);
         mesh.renderOrder = 9999;
@@ -930,15 +929,13 @@ function updateBoxPreview(start, end) {
 }
 
 function placeBoxBuildings(start, end) {
-    const curW = getCurrentWidth();
-    const curD = getCurrentDepth();
-    const coords = getBoxBuildingCoordinates(start, end, curW, curD);
+    const coords = getBoxBuildingCoordinates(start, end, boxWidth, boxDepth);
     let placedAny = false;
 
     coords.forEach(pos => {
-        if (!checkCollision(pos.x, pos.z, curW, curD)) {
+        if (!checkCollision(pos.x, pos.z, boxWidth, boxDepth)) {
             const buildingGroup = createBuildingMesh(
-                currentName, curW, curD, currentColorStr, 
+                currentName, boxWidth, boxDepth, currentColorStr, 
                 currentTextColor, currentRadius, currentCategory
             );
             buildingGroup.position.set(pos.x, 0, pos.z);
@@ -1065,6 +1062,8 @@ window.addEventListener('pointerdown', (event) => {
             if (gridCoord) {
                 isBoxPlacing = true;
                 boxStartCoord = gridCoord;
+                boxWidth = getCurrentWidth();
+                boxDepth = getCurrentDepth();
                 lastCoordKey = `${gridCoord.x}_${gridCoord.z}`;
                 updateBoxPreview(boxStartCoord, gridCoord);
             }
