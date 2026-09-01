@@ -31,32 +31,41 @@ if (uiElement) {
 
 // === OBSLUHA TUTORIÁLU A TABŮ ===
 function closeTutorial() {
+    // Skryje všechna známá okna podle selektorů
     const modalSelectors = [
         '#tutorial', '#instructions', '#controls-panel', '#help-panel', '#guide',
         '.tutorial-overlay', '.tutorial-box', '.instructions', '.help-overlay', '.controls-info', '.modal', '.overlay'
     ];
     modalSelectors.forEach(sel => {
-        document.querySelectorAll(sel).forEach(el => el.style.display = 'none');
+        document.querySelectorAll(sel).forEach(el => {
+            el.style.display = 'none';
+            el.style.pointerEvents = 'none';
+        });
     });
 
-    document.querySelectorAll('button, .btn, div').forEach(el => {
-        if (el.textContent && el.textContent.toLowerCase().includes(t('understandBtn').toLowerCase())) {
-            let parent = el.parentElement;
-            while (parent && parent !== document.body) {
-                if (parent.classList.contains('modal') || parent.classList.contains('overlay') || parent.id.includes('tutorial')) {
-                    parent.style.display = 'none';
+    // Projde všechny prvky na stránce a skryje jakékoliv okno obsahující "Rozumím" nebo "Got it"
+    document.querySelectorAll('*').forEach(el => {
+        if (el.children.length === 0 && el.textContent) {
+            const txt = el.textContent.trim().toLowerCase();
+            if (txt.includes('rozumím') || txt.includes('got it')) {
+                let curr = el;
+                while (curr && curr !== document.body) {
+                    curr.style.display = 'none';
+                    curr.style.pointerEvents = 'none';
+                    curr = curr.parentElement;
                 }
-                parent = parent.parentElement;
             }
-            el.style.display = 'none';
         }
     });
 }
 
 document.addEventListener('click', (e) => {
-    const btn = e.target.closest('button, .btn, div');
-    if (btn && btn.textContent && btn.textContent.toLowerCase().includes(t('understandBtn').toLowerCase())) {
-        closeTutorial();
+    const btn = e.target.closest('button, .btn, div, span');
+    if (btn && btn.textContent) {
+        const txt = btn.textContent.trim().toLowerCase();
+        if (txt.includes('rozumím') || txt.includes('got it')) {
+            closeTutorial();
+        }
     }
 });
 
@@ -336,7 +345,8 @@ let previewMat = new THREE.MeshBasicMaterial({
     depthWrite: false
 });
 
-let previewMesh = new THREE.Mesh(new THREE.BoxGeometry(getCurrentWidth(), 1, getCurrentDepth()), previewMat);
+let previewMesh = new THREE.Mesh(new THREE.BoxGeometry(getCurrentWidth(), 1.5, getCurrentDepth()), previewMat);
+previewMesh.position.set(0, 0.75, 0);
 previewMesh.renderOrder = 9999;
 previewGroup.add(previewMesh);
 
@@ -842,30 +852,31 @@ function getGridCoordinatesFromMouse(event) {
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
-    let posX = Math.floor(intersect.point.x + 0.5) + (curW % 2 === 0 ? 0 : 0.5);
-    let posZ = Math.floor(intersect.point.z + 0.5) + (curD % 2 === 0 ? 0 : 0.5);
+    let posX = Math.floor(intersect.point.x / tileSize) * tileSize + (curW % 2 === 0 ? 0 : tileSize / 2);
+    let posZ = Math.floor(intersect.point.z / tileSize) * tileSize + (curD % 2 === 0 ? 0 : tileSize / 2);
+
+    const maxX = (gridWidth / 2) - (curW / 2);
+    const maxZ = (gridHeight / 2) - (curD / 2);
+
+    posX = Math.max(-maxX, Math.min(maxX, posX));
+    posZ = Math.max(-maxZ, Math.min(maxZ, posZ));
 
     return { x: posX, z: posZ };
 }
 
 function getBoxBuildingCoordinates(start, end, curW, curD) {
     const coords = [];
-    const stepX = curW * Math.sign(end.x - start.x || 1);
-    const stepZ = curD * Math.sign(end.z - start.z || 1);
+    const stepX = curW;
+    const stepZ = curD;
 
     const minX = Math.min(start.x, end.x);
     const maxX = Math.max(start.x, end.x);
     const minZ = Math.min(start.z, end.z);
     const maxZ = Math.max(start.z, end.z);
 
-    const limitX = (gridWidth / 2) - (curW / 2);
-    const limitZ = (gridHeight / 2) - (curD / 2);
-
-    for (let x = start.x; stepX > 0 ? x <= maxX : x >= minX; x += stepX) {
-        for (let z = start.z; stepZ > 0 ? z <= maxZ : z >= minZ; z += stepZ) {
-            let cx = Math.max(-limitX, Math.min(limitX, x));
-            let cz = Math.max(-limitZ, Math.min(limitZ, z));
-            coords.push({ x: cx, z: cz });
+    for (let x = minX; x <= maxX; x += stepX) {
+        for (let z = minZ; z <= maxZ; z += stepZ) {
+            coords.push({ x: x, z: z });
         }
     }
     return coords;
@@ -931,27 +942,21 @@ function updatePreviewPosition() {
 
     if (intersects.length > 0) {
         previewGroup.visible = true;
-        const intersect = intersects[0];
-        const curW = getCurrentWidth();
-        const curD = getCurrentDepth();
+        const coord = getGridCoordinatesFromMouse();
 
-        let posX = Math.floor(intersect.point.x + 0.5) + (curW % 2 === 0 ? 0 : 0.5);
-        let posZ = Math.floor(intersect.point.z + 0.5) + (curD % 2 === 0 ? 0 : 0.5);
+        if (coord) {
+            const curW = getCurrentWidth();
+            const curD = getCurrentDepth();
 
-        const maxX = (gridWidth / 2) - (curW / 2);
-        const maxZ = (gridHeight / 2) - (curD / 2);
+            previewGroup.position.set(coord.x, 0, coord.z);
 
-        posX = Math.max(-maxX, Math.min(maxX, posX));
-        posZ = Math.max(-maxZ, Math.min(maxZ, posZ));
-
-        previewGroup.position.set(posX, 0, posZ);
-
-        if (checkCollision(posX, posZ, curW, curD)) {
-            previewMat.color.setStyle('#ff0000');
-            canPlace = false;
-        } else {
-            previewMat.color.setStyle(currentColorStr);
-            canPlace = true;
+            if (checkCollision(coord.x, coord.z, curW, curD)) {
+                previewMat.color.setStyle('#ff0000');
+                canPlace = false;
+            } else {
+                previewMat.color.setStyle(currentColorStr);
+                canPlace = true;
+            }
         }
     }
 }
@@ -1070,6 +1075,7 @@ window.addEventListener('pointerup', (event) => {
                 placeBoxBuildings(boxStartCoord, endCoord);
             }
             boxStartCoord = null;
+            updatePreviewMesh();
             updatePreviewPosition();
             return;
         }
