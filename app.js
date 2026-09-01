@@ -5,9 +5,9 @@ if (uiElement) {
     uiElement.addEventListener('wheel', (e) => e.stopPropagation());
 }
 
-// === OBSLUHA TUTORIÁLU A TABŮ (S UNIVERZÁLNÍM NÁHRADNÍM TLAČÍTKEM) ===
+// === OBSLUHA TUTORIÁLU A TABŮ ===
 function closeTutorial() {
-    // Skryje všechny možné kontejnery tutoriálu/návodu
+    // Skryje všechny možné kontejnery tutoriálu nebo ovládání
     const selectors = [
         '#tutorial', '#instructions', '#controls-panel', '#help-panel', '#guide',
         '.tutorial-overlay', '.tutorial-box', '.instructions', '.help-overlay', '.controls-info'
@@ -19,12 +19,12 @@ function closeTutorial() {
         });
     });
 
-    // Skryje i univerzální tlačítko
+    // Skryje pomocné tlačítko z obrazovky
     const fallbackBtn = document.getElementById('universal-close-btn');
     if (fallbackBtn) fallbackBtn.style.display = 'none';
 }
 
-// Automatické přidání náhradního zavíracího tlačítka na obrazovku
+// Přidání náhradního zavíracího tlačítka do pravého horního rohu
 document.addEventListener('DOMContentLoaded', () => {
     const fallbackBtn = document.createElement('button');
     fallbackBtn.id = 'universal-close-btn';
@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fallbackBtn.addEventListener('click', closeTutorial);
     document.body.appendChild(fallbackBtn);
 
-    // Navázání i na běžná tlačítka uvnitř HTML
+    // Navázání akce na jakákoliv tlačítka pro zavření v HTML
     document.querySelectorAll('#close-tutorial-btn, .tutorial-close, .close-btn, #tutorial-close').forEach(btn => {
         btn.addEventListener('click', closeTutorial);
     });
@@ -804,7 +804,7 @@ window.addEventListener('keydown', (e) => {
 
     if (e.key === 'r' || e.key === 'R') rotateBuilding();
     if (e.key === 'Escape') { 
-        closeTutorial(); // ESC zavře okno tutoriálu/ovládání
+        closeTutorial(); // Klávesa ESC zavře ovládání/tutoriál
         deselectBuilding(); 
         deselectAllPlaced(); 
         hideContextMenu(); 
