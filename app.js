@@ -1124,3 +1124,10 @@ window.addEventListener('resize', () => {
 
 // Inicializace po načtení
 loadCurrentSlot();
+
+// === RENDER LOOP ===
+function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+}
+animate();
