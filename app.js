@@ -5,6 +5,26 @@ if (uiElement) {
     uiElement.addEventListener('wheel', (e) => e.stopPropagation());
 }
 
+// === OBSLUHA TUTORIÁLU A TABŮ ===
+function closeTutorial() {
+    const tutorialElement = document.getElementById('tutorial') 
+                         || document.getElementById('instructions')
+                         || document.querySelector('.tutorial-overlay')
+                         || document.querySelector('.tutorial-box');
+    if (tutorialElement) {
+        tutorialElement.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const closeBtn = document.getElementById('close-tutorial-btn') 
+                  || document.querySelector('.tutorial-close')
+                  || document.querySelector('.close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeTutorial);
+    }
+});
+
 function switchUpgradeTab(tabBtn, targetId) {
     const container = tabBtn.closest('.upgrade-container');
     if(!container) return;
@@ -757,7 +777,13 @@ window.addEventListener('keydown', (e) => {
 
     if (e.key === 'r' || e.key === 'R') rotateBuilding();
     if (e.key === 'Escape') { deselectBuilding(); deselectAllPlaced(); hideContextMenu(); }
-    if (e.key === 'Delete') deleteSelectedBuildings();
+    
+    // OPRAVA MAZÁNÍ: Při zmáčknutí Delete se bezpečně odznačí aktivní stavba
+    if (e.key === 'Delete') {
+        deselectBuilding();
+        deleteSelectedBuildings();
+    }
+    
     if (e.key === 'm' || e.key === 'M') toggleMeasureTool();
     if (e.key === 'g' || e.key === 'G') toggleStatueCoverage();
 
@@ -836,7 +862,7 @@ function updatePreviewPosition() {
             previewMat.color.setStyle(currentColorStr);
             canPlace = true;
 
-            // Plynulé roznášení během tažení se stisknutým levým tlačítkem
+            // Roznášení s přitaženým levým tlačítkem
             if (isMouseDown) {
                 tryPlaceBuilding();
             }
@@ -925,7 +951,7 @@ window.addEventListener('pointerdown', (event) => {
         updatePreviewPosition();
     }
 
-    // RMB nebo MMB = Pan Kamery (Zaznamená se začátek stisku)
+    // RMB nebo MMB = Pan Kamery
     if (event.button === 2 || event.button === 1) {
         isPanning = true;
         startMouseX = event.clientX;
@@ -966,9 +992,16 @@ window.addEventListener('pointerup', (event) => {
 
     raycaster.setFromCamera(mouse, camera);
 
-    // RMB Kontextové menu / Odznačení / Smazání
+    // OPRAVA PRAVÉHO TLAČÍTKA:
     if (event.button === 2) {
         if (!hasMovedMouse) {
+            // Pokud stavíme budovu, pravé tlačítko storno/zruší stavění
+            if (currentName) {
+                deselectBuilding();
+                return;
+            }
+
+            // Pokud nestavíme, zkontrolujeme kliknutí na označenou budovu
             const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
             const intersects = raycaster.intersectObjects(buildingMeshes);
 
@@ -977,8 +1010,8 @@ window.addEventListener('pointerup', (event) => {
                 const buildingGroup = hitMesh.parent;
                 selectPlacedBuilding(buildingGroup);
                 showContextMenu(event.clientX, event.clientY);
-            } else if (currentName) {
-                deselectBuilding();
+            } else {
+                deselectAllPlaced();
             }
         }
     }
