@@ -891,8 +891,8 @@ function getGridCoordinatesFromMouse(event) {
     const curW = isBoxPlacing ? boxWidth : getCurrentWidth();
     const curD = isBoxPlacing ? boxDepth : getCurrentDepth();
 
-    let snapX = Math.round(hitPoint.x / curW) * curW;
-    let snapZ = Math.round(hitPoint.z / curD) * curD;
+    let snapX = Math.round(hitPoint.x / gridStep) * gridStep;
+    let snapZ = Math.round(hitPoint.z / gridStep) * gridStep;
 
     const maxX = (gridWidth / 2) - (curW / 2);
     const maxZ = (gridHeight / 2) - (curD / 2);
