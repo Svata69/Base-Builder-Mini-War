@@ -119,10 +119,10 @@ const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1
 camera.position.set(0, 120, 0);
 camera.lookAt(0, 0, 0);
 
-// === MŘÍŽKA A 1-JEDNOTKOVÉ SNAPOVÁNÍ ===
+// === MŘÍŽKA A 1-JEDNOTKOVÉ SNAPOVÁNÍ PRO 4x4 VNITŘEK ===
 const boardGroup = new THREE.Group();
 const visualTileSize = 4; // Vizuální velký čtverec
-const gridStep = 1;      // 1-unit krok pro přesné umisťování (4x4 vnitřní políčka)
+const gridStep = 1;      // 1-unit krok pro přesné 4x4 umisťování
 const cols = gridWidth / visualTileSize;
 const rows = gridHeight / visualTileSize;
 
@@ -886,7 +886,6 @@ function getGridCoordinatesFromMouse(event) {
     let rawX = hitPoint.x - curW / 2;
     let rawZ = hitPoint.z - curD / 2;
 
-    // Používáme gridStep = 1 pro 1-jednotkové přesné umisťování do 4x4 vnitřku
     let gridX = Math.round(rawX / gridStep) * gridStep;
     let gridZ = Math.round(rawZ / gridStep) * gridStep;
 
