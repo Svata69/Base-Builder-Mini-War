@@ -261,7 +261,7 @@ let currentTextColor = '#ffffff';
 let canPlace = false;
 let isMouseDown = false;
 
-// Stav pro tažení obdélníku budov
+// Stav pro tažení mřížky (Box Placing)
 let isBoxPlacing = false;
 let boxStartCoord = null;
 
@@ -854,18 +854,21 @@ function getGridCoordinatesFromMouse(event) {
 
 function getBoxBuildingCoordinates(start, end, curW, curD) {
     const coords = [];
-    const startX = Math.min(start.x, end.x);
-    const endX = Math.max(start.x, end.x);
-    const startZ = Math.min(start.z, end.z);
-    const endZ = Math.max(start.z, end.z);
+    const stepX = curW * Math.sign(end.x - start.x || 1);
+    const stepZ = curD * Math.sign(end.z - start.z || 1);
 
-    const maxLimitX = (gridWidth / 2) - (curW / 2);
-    const maxLimitZ = (gridHeight / 2) - (curD / 2);
+    const minX = Math.min(start.x, end.x);
+    const maxX = Math.max(start.x, end.x);
+    const minZ = Math.min(start.z, end.z);
+    const maxZ = Math.max(start.z, end.z);
 
-    for (let x = startX; x <= endX; x += curW) {
-        for (let z = startZ; z <= endZ; z += curD) {
-            let cx = Math.max(-maxLimitX, Math.min(maxLimitX, x));
-            let cz = Math.max(-maxLimitZ, Math.min(maxLimitZ, z));
+    const limitX = (gridWidth / 2) - (curW / 2);
+    const limitZ = (gridHeight / 2) - (curD / 2);
+
+    for (let x = start.x; stepX > 0 ? x <= maxX : x >= minX; x += stepX) {
+        for (let z = start.z; stepZ > 0 ? z <= maxZ : z >= minZ; z += stepZ) {
+            let cx = Math.max(-limitX, Math.min(limitX, x));
+            let cz = Math.max(-limitZ, Math.min(limitZ, z));
             coords.push({ x: cx, z: cz });
         }
     }
