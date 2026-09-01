@@ -14,14 +14,14 @@
         <div class="modal-content">
             <h2>Ovládání Plánovače</h2>
             <ul>
-                <li><strong>LMB / Tažení:</strong> Umístění budovy / Hromadné stavění</li>
-                <li><strong>Shift + LMB + Tažení:</strong> Výběr více budov (Multiselect)</li>
+                <li><strong>LMB + Tažení:</strong> Skládání budov za sebou (Kontinuální stavění)</li>
+                <li><strong>Shift + LMB + Tažení:</strong> Hromadný výběr budov (Multiselect)</li>
                 <li><strong>RMB (na budovu):</strong> Otevření kontextového menu</li>
                 <li><strong>RMB / MMB + Tažení:</strong> Posun kamery</li>
                 <li><strong>WASD / Šipky:</strong> Posun kamery po mapě</li>
                 <li><strong>Kolečko myši:</strong> Zoom</li>
                 <li><strong>R:</strong> Otočení budovy | <strong>ESC:</strong> Zrušení výběru</li>
-                <li><strong>Delete:</strong> Smazání vybrané budovy</li>
+                <li><strong>Delete:</strong> Smazání vybrané budovy / Hromadné smazání označených</li>
                 <li><strong>Ctrl+C / Ctrl+V:</strong> Kopírovat / Vložit</li>
                 <li><strong>Ctrl+Z / Ctrl+Y:</strong> Zpět / Znovu (Undo/Redo)</li>
                 <li><strong>G:</strong> Zobrazit dosah soch</li>
@@ -34,7 +34,7 @@
     <div id="context-menu" class="context-menu">
         <div class="menu-item" onclick="contextCopy()">📋 Kopírovat (Ctrl+C)</div>
         <div class="menu-item" onclick="contextRotate()">🔄 Otočit (R)</div>
-        <div class="menu-item danger" onclick="contextDelete()">🗑️ Smazat (Delete)</div>
+        <div class="menu-item danger" onclick="contextDelete()">🗑️ Smazat vybrané (Delete)</div>
     </div>
 
     <div id="ui">
