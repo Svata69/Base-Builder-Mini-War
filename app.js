@@ -854,4 +854,344 @@ window.addEventListener('keydown', (e) => {
     if (e.ctrlKey && key === 'c') copySelectedBuilding();
     if (e.ctrlKey && key === 'v') pasteCopiedBuilding();
     if (e.ctrlKey && key === 'z') { e.preventDefault(); undo(); }
-    if (e.ctrlKey && key === 'y') { e.preventDefault
+    if (e.ctrlKey && key === 'y') { e.preventDefault(); redo(); }
+});
+
+window.addEventListener('keyup', (e) => {
+    keysPressed[e.key.toLowerCase()] = false;
+});
+
+// === MYŠ A POHYB ===
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const hitPoint = new THREE.Vector3();
+
+let isPanning = false;
+let startMouseX = 0, startMouseY = 0;
+let hasMovedMouse = false;
+
+let isSelecting = false;
+let selectStartX = 0, selectStartY = 0;
+const selectionBox = document.getElementById('selection-box');
+
+function updateMousePosition(event) {
+    if (!event) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+}
+
+function getGridCoordinatesFromMouse(event) {
+    if (event) updateMousePosition(event);
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersect = raycaster.ray.intersectPlane(groundMathPlane, hitPoint);
+    if (!intersect) return null;
+
+    const curW = isBoxPlacing ? boxWidth : getCurrentWidth();
+    const curD = isBoxPlacing ? boxDepth : getCurrentDepth();
+
+    let snapX = Math.round(hitPoint.x / gridStep) * gridStep;
+    let snapZ = Math.round(hitPoint.z / gridStep) * gridStep;
+
+    const maxX = (gridWidth / 2) - (curW / 2);
+    const maxZ = (gridHeight / 2) - (curD / 2);
+
+    snapX = Math.max(-maxX, Math.min(maxX, snapX));
+    snapZ = Math.max(-maxZ, Math.min(maxZ, snapZ));
+
+    return { x: snapX, z: snapZ };
+}
+
+function getBoxBuildingCoordinates(start, end, w, d) {
+    const coords = [];
+    const stepX = end.x >= start.x ? w : -w;
+    const stepZ = end.z >= start.z ? d : -d;
+
+    for (let x = start.x; stepX > 0 ? x <= end.x + 0.001 : x >= end.x - 0.001; x += stepX) {
+        for (let z = start.z; stepZ > 0 ? z <= end.z + 0.001 : z >= end.z - 0.001; z += stepZ) {
+            coords.push({ x: Number(x.toFixed(2)), z: Number(z.toFixed(2)) });
+        }
+    }
+    return coords;
+}
+
+function updateBoxPreview(start, end) {
+    previewGroup.clear();
+    previewGroup.visible = true;
+
+    const coords = getBoxBuildingCoordinates(start, end, boxWidth, boxDepth);
+
+    const sharedGeo = new THREE.BoxGeometry(boxWidth, 1.5, boxDepth);
+    const validMat = new THREE.MeshBasicMaterial({ color: currentColorStr, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false });
+    const invalidMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false });
+
+    coords.forEach(pos => {
+        const isColliding = checkCollision(pos.x, pos.z, boxWidth, boxDepth);
+        const mesh = new THREE.Mesh(sharedGeo, isColliding ? invalidMat : validMat);
+        mesh.position.set(pos.x, 0.75, pos.z);
+        mesh.renderOrder = 9999;
+        previewGroup.add(mesh);
+    });
+}
+
+function placeBoxBuildings(start, end) {
+    const coords = getBoxBuildingCoordinates(start, end, boxWidth, boxDepth);
+    let placedAny = false;
+
+    coords.forEach(pos => {
+        if (!checkCollision(pos.x, pos.z, boxWidth, boxDepth)) {
+            const buildingGroup = createBuildingMesh(
+                currentName, boxWidth, boxDepth, currentColorStr, 
+                currentTextColor, currentRadius, currentCategory
+            );
+            buildingGroup.position.set(pos.x, 0, pos.z);
+            scene.add(buildingGroup);
+            placedBuildings.push(buildingGroup);
+            placedAny = true;
+        }
+    });
+
+    if (placedAny) {
+        recalculateStatueBoosts();
+        saveHistoryState();
+    }
+}
+
+function updatePreviewPosition(event) {
+    if (!currentName || isBoxPlacing) {
+        previewGroup.visible = false;
+        return;
+    }
+
+    const coord = getGridCoordinatesFromMouse(event);
+
+    if (coord) {
+        previewGroup.visible = true;
+        const curW = getCurrentWidth();
+        const curD = getCurrentDepth();
+
+        previewGroup.position.set(coord.x, 0, coord.z);
+
+        if (checkCollision(coord.x, coord.z, curW, curD)) {
+            previewMat.color.setStyle('#ff0000');
+            canPlace = false;
+        } else {
+            previewMat.color.setStyle(currentColorStr);
+            canPlace = true;
+        }
+    } else {
+        previewGroup.visible = false;
+    }
+}
+
+window.addEventListener('pointermove', (event) => {
+    updateMousePosition(event);
+
+    if (isSelecting && selectionBox) {
+        const currentX = event.clientX;
+        const currentY = event.clientY;
+
+        const width = Math.abs(currentX - selectStartX);
+        const height = Math.abs(currentY - selectStartY);
+        const left = Math.min(currentX, selectStartX);
+        const top = Math.min(currentY, selectStartY);
+
+        selectionBox.style.width = `${width}px`;
+        selectionBox.style.height = `${height}px`;
+        selectionBox.style.left = `${left}px`;
+        selectionBox.style.top = `${top}px`;
+        return;
+    }
+
+    if (isPanning) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        const worldWidth = (camera.right - camera.left) / camera.zoom;
+        const worldHeight = (camera.top - camera.bottom) / camera.zoom;
+
+        const deltaX = (event.clientX - startMouseX) * (worldWidth / rect.width);
+        const deltaY = (event.clientY - startMouseY) * (worldHeight / rect.height);
+
+        if (Math.abs(event.clientX - startMouseX) > 1 || Math.abs(event.clientY - startMouseY) > 1) {
+            hasMovedMouse = true;
+        }
+
+        camera.position.x -= deltaX;
+        camera.position.z -= deltaY;
+        camera.updateMatrixWorld();
+
+        startMouseX = event.clientX;
+        startMouseY = event.clientY;
+        
+        updatePreviewPosition(event);
+        return;
+    }
+
+    if (isBoxPlacing && currentName) {
+        const currentCoord = getGridCoordinatesFromMouse(event);
+        if (boxStartCoord && currentCoord) {
+            const key = `${currentCoord.x}_${currentCoord.z}`;
+            if (key !== lastCoordKey) {
+                lastCoordKey = key;
+                updateBoxPreview(boxStartCoord, currentCoord);
+            }
+        }
+        return;
+    }
+
+    updatePreviewPosition(event);
+});
+
+window.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('#context-menu')) return;
+    if (event.clientX > window.innerWidth - 320 && event.clientY < 600) return;
+    
+    updateMousePosition(event);
+    hideContextMenu();
+
+    if (event.button === 0 && event.shiftKey) {
+        isSelecting = true;
+        selectStartX = event.clientX;
+        selectStartY = event.clientY;
+        if (selectionBox) {
+            selectionBox.style.display = 'block';
+            selectionBox.style.width = '0px';
+            selectionBox.style.height = '0px';
+        }
+        return;
+    }
+
+    if (event.button === 0) {
+        isMouseDown = true;
+
+        if (currentName) {
+            const gridCoord = getGridCoordinatesFromMouse(event);
+            if (gridCoord) {
+                isBoxPlacing = true;
+                boxStartCoord = gridCoord;
+                boxWidth = getCurrentWidth();
+                boxDepth = getCurrentDepth();
+                lastCoordKey = `${gridCoord.x}_${gridCoord.z}`;
+                updateBoxPreview(boxStartCoord, gridCoord);
+            }
+            return;
+        }
+
+        raycaster.setFromCamera(mouse, camera);
+        const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
+        const intersects = raycaster.intersectObjects(buildingMeshes);
+
+        if (intersects.length > 0) {
+            const hitGroup = intersects[0].object.parent;
+            selectPlacedBuilding(hitGroup, event.ctrlKey);
+        } else {
+            deselectAllPlaced();
+        }
+
+        updatePreviewPosition(event);
+    }
+
+    if (event.button === 2 || event.button === 1) {
+        if (!currentName) {
+            isPanning = true;
+            startMouseX = event.clientX;
+            startMouseY = event.clientY;
+            hasMovedMouse = false;
+        }
+    }
+});
+
+window.addEventListener('pointerup', (event) => {
+    if (event.target.closest('#context-menu')) return;
+    updateMousePosition(event);
+
+    if (event.button === 0) {
+        isMouseDown = false;
+
+        if (isBoxPlacing && currentName) {
+            isBoxPlacing = false;
+            const endCoord = getGridCoordinatesFromMouse(event);
+            if (boxStartCoord && endCoord) {
+                placeBoxBuildings(boxStartCoord, endCoord);
+            }
+            boxStartCoord = null;
+            lastCoordKey = null;
+            updatePreviewMesh();
+            updatePreviewPosition(event);
+            return;
+        }
+
+        if (isSelecting) {
+            isSelecting = false;
+            if (selectionBox) selectionBox.style.display = 'none';
+
+            deselectAllPlaced();
+            const minX = Math.min(event.clientX, selectStartX);
+            const maxX = Math.max(event.clientX, selectStartX);
+            const minY = Math.min(event.clientY, selectStartY);
+            const maxY = Math.max(event.clientY, selectStartY);
+
+            placedBuildings.forEach(b => {
+                const vector = b.position.clone().project(camera);
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+
+                if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+                    selectPlacedBuilding(b, true);
+                }
+            });
+            return;
+        }
+    }
+
+    if (event.clientX > window.innerWidth - 320 && event.clientY < 600) return;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    if (event.button === 2) {
+        if (currentName) {
+            deselectBuilding();
+            isPanning = false;
+            return;
+        }
+
+        if (!hasMovedMouse) {
+            const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
+            const intersects = raycaster.intersectObjects(buildingMeshes);
+
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                const buildingGroup = hitMesh.parent;
+                selectPlacedBuilding(buildingGroup);
+                showContextMenu(event.clientX, event.clientY);
+            }
+        }
+    }
+
+    if (event.button === 2 || event.button === 1) {
+        isPanning = false;
+    }
+});
+
+window.addEventListener('contextmenu', event => event.preventDefault());
+
+window.addEventListener('wheel', (event) => {
+    camera.zoom -= event.deltaY * 0.001;
+    camera.zoom = Math.max(0.2, Math.min(camera.zoom, 5));
+    camera.updateProjectionMatrix();
+    updatePreviewPosition(event);
+});
+
+window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    updateCameraAspect();
+});
+
+loadCurrentSlot();
+
+function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+}
+animate();
