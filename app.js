@@ -155,7 +155,7 @@ gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
 const customGrid = new THREE.LineSegments(gridGeo, gridMat);
 scene.add(customGrid);
 
-// Neviditelná dopadová plocha pro přesný výpočet zásahu paprsku myši
+// Neviditelná dopadová plocha pro raycasting
 const raycastPlaneGeo = new THREE.PlaneGeometry(gridWidth * 2, gridHeight * 2);
 raycastPlaneGeo.rotateX(-Math.PI / 2);
 const raycastPlaneMesh = new THREE.Mesh(
@@ -163,6 +163,9 @@ const raycastPlaneMesh = new THREE.Mesh(
     new THREE.MeshBasicMaterial({ visible: false })
 );
 scene.add(raycastPlaneMesh);
+
+// Matematická rovina pro bleskový výpočet souřadnic
+const groundMathPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 // === POMOCNÉ FUNKCE ===
 function createTopTexture(text, bgColorHexStr, textColor, boosts = null) {
@@ -272,6 +275,7 @@ let isMouseDown = false;
 
 let isBoxPlacing = false;
 let boxStartCoord = null;
+let lastCoordKey = null;
 
 const placedBuildings = [];
 let selectedBuildings = [];
@@ -358,6 +362,7 @@ function deselectBuilding() {
     isMouseDown = false;
     isBoxPlacing = false;
     boxStartCoord = null;
+    lastCoordKey = null;
     document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
 }
 
@@ -554,7 +559,8 @@ function checkCollision(posX, posZ, w, d, ignoreBuildings = []) {
     const newMinZ = posZ - d / 2;
     const newMaxZ = posZ + d / 2;
 
-    for (let b of placedBuildings) {
+    for (let i = 0; i < placedBuildings.length; i++) {
+        const b = placedBuildings[i];
         if (ignoreBuildings.includes(b)) continue;
         const bWidth = b.userData.width;
         const bDepth = b.userData.depth;
@@ -570,7 +576,7 @@ function checkCollision(posX, posZ, w, d, ignoreBuildings = []) {
     return false;
 }
 
-// === VYBERANÍ A KOPÍROVÁNÍ ===
+// === VÝBĚR A KOPÍROVÁNÍ ===
 function selectPlacedBuilding(buildingGroup, add = false) {
     if (!add) deselectAllPlaced();
     if (!selectedBuildings.includes(buildingGroup)) {
@@ -632,7 +638,7 @@ function pasteCopiedBuilding() {
     }
 }
 
-// === KONTEXTOVÉ MENU FUNKCE ===
+// === KONTEXTOVÉ MENU ===
 function showContextMenu(x, y) {
     const contextMenu = document.getElementById('context-menu');
     if (contextMenu) {
@@ -836,6 +842,7 @@ window.addEventListener('keyup', (e) => {
 // === MYŠ A POHYB ===
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
+const hitPoint = new THREE.Vector3();
 
 let isPanning = false;
 let startMouseX = 0, startMouseY = 0;
@@ -852,23 +859,19 @@ function updateMousePosition(event) {
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 }
 
-// Přesný výpočet souřadnic mřížky přímo pod kurzorem myši
+// Bleskový výpočet souřadnic mřížky pomocí direktní geometrické roviny
 function getGridCoordinatesFromMouse(event) {
     if (event) updateMousePosition(event);
 
-    camera.updateMatrixWorld();
     raycaster.setFromCamera(mouse, camera);
-
-    const intersects = raycaster.intersectObject(raycastPlaneMesh);
-    if (intersects.length === 0) return null;
-
-    const hit = intersects[0].point;
+    const intersect = raycaster.ray.intersectPlane(groundMathPlane, hitPoint);
+    if (!intersect) return null;
 
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
-    let rawX = hit.x - curW / 2;
-    let rawZ = hit.z - curD / 2;
+    let rawX = hitPoint.x - curW / 2;
+    let rawZ = hitPoint.z - curD / 2;
 
     let gridX = Math.round(rawX / tileSize) * tileSize;
     let gridZ = Math.round(rawZ / tileSize) * tileSize;
@@ -908,16 +911,13 @@ function updateBoxPreview(start, end) {
     const curD = getCurrentDepth();
     const coords = getBoxBuildingCoordinates(start, end, curW, curD);
 
+    const sharedGeo = new THREE.BoxGeometry(curW, 1.5, curD);
+    const validMat = new THREE.MeshBasicMaterial({ color: currentColorStr, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false });
+    const invalidMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.6, depthTest: false, depthWrite: false });
+
     coords.forEach(pos => {
         const isColliding = checkCollision(pos.x, pos.z, curW, curD);
-        const boxMat = new THREE.MeshBasicMaterial({ 
-            color: isColliding ? 0xff0000 : currentColorStr, 
-            transparent: true, 
-            opacity: 0.6,
-            depthTest: false,
-            depthWrite: false
-        });
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(curW, 1.5, curD), boxMat);
+        const mesh = new THREE.Mesh(sharedGeo, isColliding ? invalidMat : validMat);
         mesh.position.set(pos.x, 0.75, pos.z);
         mesh.renderOrder = 9999;
         previewGroup.add(mesh);
@@ -1014,7 +1014,11 @@ window.addEventListener('pointermove', (event) => {
     if (isBoxPlacing && currentName) {
         const currentCoord = getGridCoordinatesFromMouse(event);
         if (boxStartCoord && currentCoord) {
-            updateBoxPreview(boxStartCoord, currentCoord);
+            const key = `${currentCoord.x}_${currentCoord.z}`;
+            if (key !== lastCoordKey) {
+                lastCoordKey = key;
+                updateBoxPreview(boxStartCoord, currentCoord);
+            }
         }
         return;
     }
@@ -1049,12 +1053,12 @@ window.addEventListener('pointerdown', (event) => {
             if (gridCoord) {
                 isBoxPlacing = true;
                 boxStartCoord = gridCoord;
+                lastCoordKey = `${gridCoord.x}_${gridCoord.z}`;
                 updateBoxPreview(boxStartCoord, gridCoord);
             }
             return;
         }
 
-        camera.updateMatrixWorld();
         raycaster.setFromCamera(mouse, camera);
         const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
         const intersects = raycaster.intersectObjects(buildingMeshes);
@@ -1093,6 +1097,7 @@ window.addEventListener('pointerup', (event) => {
                 placeBoxBuildings(boxStartCoord, endCoord);
             }
             boxStartCoord = null;
+            lastCoordKey = null;
             updatePreviewMesh();
             updatePreviewPosition(event);
             return;
@@ -1123,7 +1128,6 @@ window.addEventListener('pointerup', (event) => {
 
     if (event.clientX > window.innerWidth - 320 && event.clientY < 600) return;
 
-    camera.updateMatrixWorld();
     raycaster.setFromCamera(mouse, camera);
 
     if (event.button === 2) {
