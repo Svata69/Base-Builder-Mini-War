@@ -31,7 +31,6 @@ if (uiElement) {
 
 // === OBSLUHA TUTORIÁLU A TABŮ ===
 function closeTutorial() {
-    // Skryje všechna známá okna podle selektorů
     const modalSelectors = [
         '#tutorial', '#instructions', '#controls-panel', '#help-panel', '#guide',
         '.tutorial-overlay', '.tutorial-box', '.instructions', '.help-overlay', '.controls-info', '.modal', '.overlay'
@@ -43,7 +42,6 @@ function closeTutorial() {
         });
     });
 
-    // Projde všechny prvky na stránce a skryje jakékoliv okno obsahující "Rozumím" nebo "Got it"
     document.querySelectorAll('*').forEach(el => {
         if (el.children.length === 0 && el.textContent) {
             const txt = el.textContent.trim().toLowerCase();
@@ -146,10 +144,10 @@ const gridMat = new THREE.LineBasicMaterial({ color: 0x183815, transparent: true
 const gridGeo = new THREE.BufferGeometry();
 const points = [];
 
-for (let i = -gridWidth / 2; i <= gridWidth / 2; i++) {
+for (let i = -gridWidth / 2; i <= gridWidth / 2; i += tileSize) {
     points.push(i, 0, -gridHeight / 2, i, 0, gridHeight / 2);
 }
-for (let j = -gridHeight / 2; j <= gridHeight / 2; j++) {
+for (let j = -gridHeight / 2; j <= gridHeight / 2; j += tileSize) {
     points.push(-gridWidth / 2, 0, j, gridWidth / 2, 0, j);
 }
 gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
@@ -267,7 +265,6 @@ let currentTextColor = '#ffffff';
 let canPlace = false;
 let isMouseDown = false;
 
-// Stav pro tažení mřížky (Box Placing)
 let isBoxPlacing = false;
 let boxStartCoord = null;
 
@@ -662,7 +659,7 @@ function contextDelete() {
     hideContextMenu(); 
 }
 
-// === DOSAH SOCH (ZAPNOUT / VYPNUT) ===
+// === DOSAH SOCH ===
 let isStatueCoverageActive = false;
 let coverageRingsGroup = new THREE.Group();
 scene.add(coverageRingsGroup);
@@ -797,7 +794,7 @@ function clearCurrentSlot() {
     }
 }
 
-// === KLÁVESNICE A ULOŽENÍ ===
+// === KLÁVESNICE ===
 const keysPressed = {};
 
 window.addEventListener('keydown', (e) => {
@@ -843,17 +840,21 @@ let isSelecting = false;
 let selectStartX = 0, selectStartY = 0;
 const selectionBox = document.getElementById('selection-box');
 
+// === OPRAVENÝ PŘEPOČET SOUŘADNIC MYŠI NA MŘÍŽKU ===
 function getGridCoordinatesFromMouse(event) {
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObject(groundPlane);
     if (intersects.length === 0) return null;
 
-    const intersect = intersects[0];
+    const hit = intersects[0].point;
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
-    let posX = Math.floor(intersect.point.x / tileSize) * tileSize + (curW % 2 === 0 ? 0 : tileSize / 2);
-    let posZ = Math.floor(intersect.point.z / tileSize) * tileSize + (curD % 2 === 0 ? 0 : tileSize / 2);
+    let gridX = Math.floor((hit.x + gridWidth / 2) / tileSize) * tileSize - gridWidth / 2;
+    let gridZ = Math.floor((hit.z + gridHeight / 2) / tileSize) * tileSize - gridHeight / 2;
+
+    let posX = gridX + curW / 2;
+    let posZ = gridZ + curD / 2;
 
     const maxX = (gridWidth / 2) - (curW / 2);
     const maxZ = (gridHeight / 2) - (curD / 2);
@@ -931,33 +932,31 @@ function placeBoxBuildings(start, end) {
     }
 }
 
+// === OPRAVENÁ AKTUALIZACE POZICE NÁHLEDU ===
 function updatePreviewPosition() {
     if (!currentName || isBoxPlacing) {
         previewGroup.visible = false;
         return;
     }
 
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObject(groundPlane);
+    const coord = getGridCoordinatesFromMouse();
 
-    if (intersects.length > 0) {
+    if (coord) {
         previewGroup.visible = true;
-        const coord = getGridCoordinatesFromMouse();
+        const curW = getCurrentWidth();
+        const curD = getCurrentDepth();
 
-        if (coord) {
-            const curW = getCurrentWidth();
-            const curD = getCurrentDepth();
+        previewGroup.position.set(coord.x, 0, coord.z);
 
-            previewGroup.position.set(coord.x, 0, coord.z);
-
-            if (checkCollision(coord.x, coord.z, curW, curD)) {
-                previewMat.color.setStyle('#ff0000');
-                canPlace = false;
-            } else {
-                previewMat.color.setStyle(currentColorStr);
-                canPlace = true;
-            }
+        if (checkCollision(coord.x, coord.z, curW, curD)) {
+            previewMat.color.setStyle('#ff0000');
+            canPlace = false;
+        } else {
+            previewMat.color.setStyle(currentColorStr);
+            canPlace = true;
         }
+    } else {
+        previewGroup.visible = false;
     }
 }
 
