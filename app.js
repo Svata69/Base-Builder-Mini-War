@@ -7,22 +7,23 @@ if (uiElement) {
 
 // === OBSLUHA TUTORIÁLU A TABŮ ===
 function closeTutorial() {
-    // 1. Vyhledá okno s tutoriálem podle nadpisu nebo obsahu a skryje ho
-    const allDivs = document.querySelectorAll('div, section, article, modal-dialog');
-    allDivs.forEach(el => {
-        if (el.textContent && (el.textContent.includes('Ovládání Plánovače') || el.textContent.includes('Rozumím'))) {
-            // Pokud je to přímo to okno (ne celý document body), skryjeme ho
-            if (el.children.length > 0 && el.tagName !== 'BODY' && el.tagName !== 'HTML') {
-                el.style.display = 'none';
+    // Projde všechny prvky na stránce a skryje modal s tutoriálem / ovládáním
+    const allElements = document.querySelectorAll('*');
+    allElements.forEach(el => {
+        if (el.children.length < 5 && el.textContent && el.textContent.includes('Ovládání Plánovače')) {
+            let parent = el;
+            while (parent && parent.tagName !== 'BODY') {
+                if (parent.classList.contains('modal') || parent.classList.contains('overlay') || parent.tagName === 'DIV') {
+                    parent.style.display = 'none';
+                }
+                parent = parent.parentElement;
             }
         }
     });
 
-    // 2. Skryje pomocná tlačítka a známé třídy/ID
     const selectors = [
         '#tutorial', '#instructions', '#controls-panel', '#help-panel', '#guide',
-        '.tutorial-overlay', '.tutorial-box', '.instructions', '.help-overlay', '.controls-info',
-        '#universal-close-btn'
+        '.tutorial-overlay', '.tutorial-box', '.instructions', '.help-overlay', '.controls-info', '.modal', '.overlay'
     ];
 
     selectors.forEach(selector => {
@@ -32,40 +33,12 @@ function closeTutorial() {
     });
 }
 
-// Připojení akcí po načtení stránky
-document.addEventListener('DOMContentLoaded', () => {
-    // Navázání akce přímo na zelené tlačítko "Rozumím" i jakákoliv jiná tlačítka v okně
-    document.body.addEventListener('click', (e) => {
-        const target = e.target;
-        if (target && (
-            target.textContent.trim() === 'Rozumím' || 
-            target.id === 'universal-close-btn' ||
-            target.classList.contains('close-btn')
-        )) {
-            closeTutorial();
-        }
-    });
-
-    // Červené náhradní tlačítko vpravo nahoře pro jistotu
-    const fallbackBtn = document.createElement('button');
-    fallbackBtn.id = 'universal-close-btn';
-    fallbackBtn.innerHTML = '❌ Zavřít ovládání';
-    fallbackBtn.style.position = 'fixed';
-    fallbackBtn.style.top = '15px';
-    fallbackBtn.style.right = '15px';
-    fallbackBtn.style.zIndex = '999999';
-    fallbackBtn.style.padding = '10px 18px';
-    fallbackBtn.style.backgroundColor = '#e74c3c';
-    fallbackBtn.style.color = '#ffffff';
-    fallbackBtn.style.border = '2px solid #ffffff';
-    fallbackBtn.style.borderRadius = '8px';
-    fallbackBtn.style.fontWeight = 'bold';
-    fallbackBtn.style.fontSize = '14px';
-    fallbackBtn.style.cursor = 'pointer';
-    fallbackBtn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.5)';
-
-    fallbackBtn.addEventListener('click', closeTutorial);
-    document.body.appendChild(fallbackBtn);
+// Připojení listeneru přímo na zelené tlačítko v celém dokumentu
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('button, .btn');
+    if (btn && (btn.textContent.includes('Rozumím') || btn.id === 'close-tutorial-btn')) {
+        closeTutorial();
+    }
 });
 
 function switchUpgradeTab(tabBtn, targetId) {
@@ -820,7 +793,7 @@ window.addEventListener('keydown', (e) => {
 
     if (e.key === 'r' || e.key === 'R') rotateBuilding();
     if (e.key === 'Escape') { 
-        closeTutorial(); // Klávesa ESC schová ovládání
+        closeTutorial();
         deselectBuilding(); 
         deselectAllPlaced(); 
         hideContextMenu(); 
@@ -995,10 +968,13 @@ window.addEventListener('pointerdown', (event) => {
     }
 
     if (event.button === 2 || event.button === 1) {
-        isPanning = true;
-        startMouseX = event.clientX;
-        startMouseY = event.clientY;
-        hasMovedMouse = false;
+        // Panning nastane pouze pokud nedržíme v ruce vybranou budovu k deselectu
+        if (!currentName) {
+            isPanning = true;
+            startMouseX = event.clientX;
+            startMouseY = event.clientY;
+            hasMovedMouse = false;
+        }
     }
 });
 
@@ -1034,14 +1010,15 @@ window.addEventListener('pointerup', (event) => {
     raycaster.setFromCamera(mouse, camera);
 
     if (event.button === 2) {
-        if (!hasMovedMouse) {
-            if (currentName) {
-                deselectBuilding();
-                return;
-            }
+        if (currentName) {
+            deselectBuilding();
+            isPanning = false;
+            return;
+        }
 
+        if (!hasMovedMouse) {
             const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
-            const intersects.length > 0 && (buildingMeshes);
+            const intersects = raycaster.intersectObjects(buildingMeshes);
 
             if (intersects.length > 0) {
                 const hitMesh = intersects[0].object;
