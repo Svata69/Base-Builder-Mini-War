@@ -31,34 +31,31 @@ if (uiElement) {
 
 // === OBSLUHA TUTORIÁLU A TABŮ ===
 function closeTutorial() {
-    const allElements = document.querySelectorAll('*');
-    allElements.forEach(el => {
-        if (el.children.length < 5 && el.textContent && el.textContent.includes(t('tutorialTitle'))) {
-            let parent = el;
-            while (parent && parent.tagName !== 'BODY') {
-                if (parent.classList.contains('modal') || parent.classList.contains('overlay') || parent.tagName === 'DIV') {
+    const modalSelectors = [
+        '#tutorial', '#instructions', '#controls-panel', '#help-panel', '#guide',
+        '.tutorial-overlay', '.tutorial-box', '.instructions', '.help-overlay', '.controls-info', '.modal', '.overlay'
+    ];
+    modalSelectors.forEach(sel => {
+        document.querySelectorAll(sel).forEach(el => el.style.display = 'none');
+    });
+
+    document.querySelectorAll('button, .btn, div').forEach(el => {
+        if (el.textContent && el.textContent.toLowerCase().includes(t('understandBtn').toLowerCase())) {
+            let parent = el.parentElement;
+            while (parent && parent !== document.body) {
+                if (parent.classList.contains('modal') || parent.classList.contains('overlay') || parent.id.includes('tutorial')) {
                     parent.style.display = 'none';
                 }
                 parent = parent.parentElement;
             }
-        }
-    });
-
-    const selectors = [
-        '#tutorial', '#instructions', '#controls-panel', '#help-panel', '#guide',
-        '.tutorial-overlay', '.tutorial-box', '.instructions', '.help-overlay', '.controls-info', '.modal', '.overlay'
-    ];
-
-    selectors.forEach(selector => {
-        document.querySelectorAll(selector).forEach(el => {
             el.style.display = 'none';
-        });
+        }
     });
 }
 
 document.addEventListener('click', (e) => {
     const btn = e.target.closest('button, .btn, div');
-    if (btn && btn.textContent && btn.textContent.includes(t('understandBtn'))) {
+    if (btn && btn.textContent && btn.textContent.toLowerCase().includes(t('understandBtn').toLowerCase())) {
         closeTutorial();
     }
 });
@@ -358,7 +355,6 @@ function updatePreviewMesh() {
         previewGroup.visible = false;
         return;
     }
-    previewGroup.visible = true;
 
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
@@ -925,16 +921,16 @@ function placeBoxBuildings(start, end) {
 }
 
 function updatePreviewPosition() {
-    if (!currentName) {
+    if (!currentName || isBoxPlacing) {
         previewGroup.visible = false;
         return;
     }
-    previewGroup.visible = true;
 
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObject(groundPlane);
 
     if (intersects.length > 0) {
+        previewGroup.visible = true;
         const intersect = intersects[0];
         const curW = getCurrentWidth();
         const curD = getCurrentDepth();
