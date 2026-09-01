@@ -111,7 +111,7 @@ const aspect = window.innerWidth / window.innerHeight;
 let d = 90;
 const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
 camera.position.set(0, 120, 0);
-camera.rotation.x = -Math.PI / 2; // Pevný pohled shora dolů
+camera.rotation.x = -Math.PI / 2;
 camera.updateMatrixWorld();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -845,6 +845,7 @@ function updateMousePosition(event) {
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 }
 
+// === PŘESNÝ VÝPOČET POZICE SLEDUSÍCÍ KURZOR MYŠI ===
 function getGridCoordinatesFromMouse(event) {
     if (event) updateMousePosition(event);
 
@@ -859,9 +860,12 @@ function getGridCoordinatesFromMouse(event) {
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
-    // Zarovnání přímo k bodu dopadu
-    let posX = Math.floor((hit.x + gridWidth / 2) / tileSize) * tileSize - gridWidth / 2 + curW / 2;
-    let posZ = Math.floor((hit.z + gridHeight / 2) / tileSize) * tileSize - gridHeight / 2 + curD / 2;
+    // Přesné uzamčení do mřížky podle středu a velikosti budovy
+    let posX = Math.floor((hit.x + (curW % 8 === 0 ? 0 : tileSize / 2)) / tileSize) * tileSize;
+    let posZ = Math.floor((hit.z + (curD % 8 === 0 ? 0 : tileSize / 2)) / tileSize) * tileSize;
+
+    if ((curW / tileSize) % 2 !== 0) posX += tileSize / 2;
+    if ((curD / tileSize) % 2 !== 0) posZ += tileSize / 2;
 
     const maxX = (gridWidth / 2) - (curW / 2);
     const maxZ = (gridHeight / 2) - (curD / 2);
@@ -874,17 +878,14 @@ function getGridCoordinatesFromMouse(event) {
 
 function getBoxBuildingCoordinates(start, end, curW, curD) {
     const coords = [];
-    const stepX = curW;
-    const stepZ = curD;
-
     const minX = Math.min(start.x, end.x);
     const maxX = Math.max(start.x, end.x);
     const minZ = Math.min(start.z, end.z);
     const maxZ = Math.max(start.z, end.z);
 
-    for (let x = minX; x <= maxX; x += stepX) {
-        for (let z = minZ; z <= maxZ; z += stepZ) {
-            coords.push({ x: x, z: z });
+    for (let x = minX; x <= maxX; x += curW) {
+        for (let z = minZ; z <= maxZ; z += curD) {
+            coords.push({ x: Number(x.toFixed(2)), z: Number(z.toFixed(2)) });
         }
     }
     return coords;
