@@ -7,7 +7,6 @@ if (uiElement) {
 
 // === OBSLUHA TUTORIÁLU A TABŮ ===
 function closeTutorial() {
-    // Projde všechny prvky na stránce a skryje modal s tutoriálem / ovládáním
     const allElements = document.querySelectorAll('*');
     allElements.forEach(el => {
         if (el.children.length < 5 && el.textContent && el.textContent.includes('Ovládání Plánovače')) {
@@ -33,10 +32,9 @@ function closeTutorial() {
     });
 }
 
-// Připojení listeneru přímo na zelené tlačítko v celém dokumentu
 document.addEventListener('click', (e) => {
-    const btn = e.target.closest('button, .btn');
-    if (btn && (btn.textContent.includes('Rozumím') || btn.id === 'close-tutorial-btn')) {
+    const btn = e.target.closest('button, .btn, div');
+    if (btn && btn.textContent && btn.textContent.includes('Rozumím')) {
         closeTutorial();
     }
 });
@@ -568,9 +566,16 @@ function selectPlacedBuilding(buildingGroup, add = false) {
     if (!add) deselectAllPlaced();
     if (!selectedBuildings.includes(buildingGroup)) {
         selectedBuildings.push(buildingGroup);
-        const box = new THREE.BoxHelper(buildingGroup.userData.mainMesh, 0x00ffff);
-        box.name = 'selectionOutline';
-        buildingGroup.add(box);
+        
+        // Zvýraznění správné velikosti přímo okolo budovy
+        const w = buildingGroup.userData.width;
+        const d = buildingGroup.userData.depth;
+        const boxGeo = new THREE.BoxGeometry(w + 0.2, 1.4, d + 0.2);
+        const boxMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+        const boxMesh = new THREE.Mesh(boxGeo, boxMat);
+        boxMesh.name = 'selectionOutline';
+        boxMesh.position.set(0, 0.6, 0);
+        buildingGroup.add(boxMesh);
     }
 }
 
@@ -832,9 +837,21 @@ function hideContextMenu() {
     if (contextMenu) contextMenu.style.display = 'none';
 }
 
-function contextCopy() { copySelectedBuilding(); hideContextMenu(); }
-function contextRotate() { rotateBuilding(); hideContextMenu(); }
-function contextDelete() { deleteSelectedBuildings(); hideContextMenu(); }
+function contextCopy() { 
+    copySelectedBuilding(); 
+    pasteCopiedBuilding(); 
+    hideContextMenu(); 
+}
+
+function contextRotate() { 
+    rotateBuilding(); 
+    hideContextMenu(); 
+}
+
+function contextDelete() { 
+    deleteSelectedBuildings(); 
+    hideContextMenu(); 
+}
 
 // === MYŠ A POHYB KAMERY ===
 const raycaster = new THREE.Raycaster();
@@ -844,7 +861,6 @@ let isPanning = false;
 let startMouseX = 0, startMouseY = 0;
 let hasMovedMouse = false;
 
-// Multiselect Drag Box
 let isSelecting = false;
 let selectStartX = 0, selectStartY = 0;
 const selectionBox = document.getElementById('selection-box');
@@ -929,7 +945,9 @@ window.addEventListener('pointermove', (event) => {
 });
 
 window.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('#context-menu')) return;
     if (event.clientX > window.innerWidth - 320 && event.clientY < 600) return;
+    
     hideContextMenu();
 
     if (event.button === 0 && event.shiftKey) {
@@ -968,7 +986,6 @@ window.addEventListener('pointerdown', (event) => {
     }
 
     if (event.button === 2 || event.button === 1) {
-        // Panning nastane pouze pokud nedržíme v ruce vybranou budovu k deselectu
         if (!currentName) {
             isPanning = true;
             startMouseX = event.clientX;
@@ -979,6 +996,8 @@ window.addEventListener('pointerdown', (event) => {
 });
 
 window.addEventListener('pointerup', (event) => {
+    if (event.target.closest('#context-menu')) return;
+
     if (event.button === 0) {
         isMouseDown = false;
 
@@ -1025,8 +1044,6 @@ window.addEventListener('pointerup', (event) => {
                 const buildingGroup = hitMesh.parent;
                 selectPlacedBuilding(buildingGroup);
                 showContextMenu(event.clientX, event.clientY);
-            } else {
-                deselectAllPlaced();
             }
         }
     }
