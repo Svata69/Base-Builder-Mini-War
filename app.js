@@ -112,12 +112,21 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-const canvasRect = renderer.domElement.getBoundingClientRect();
-const aspect = canvasRect.width / canvasRect.height;
 let d = 90;
-const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 1000);
 camera.position.set(0, 120, 0);
 camera.lookAt(0, 0, 0);
+
+function updateCameraAspect() {
+    const rect = renderer.domElement.getBoundingClientRect();
+    const aspect = (rect.width && rect.height) ? (rect.width / rect.height) : (window.innerWidth / window.innerHeight);
+    camera.left = -d * aspect;
+    camera.right = d * aspect;
+    camera.top = d;
+    camera.bottom = -d;
+    camera.updateProjectionMatrix();
+}
+updateCameraAspect();
 
 // === MŘÍŽKA S 4x4 VIZUÁLNÍMI ČTVERCI A 1-JEDNOTKOVÝM KROKEM ===
 const boardGroup = new THREE.Group();
@@ -882,9 +891,8 @@ function getGridCoordinatesFromMouse(event) {
     const curW = isBoxPlacing ? boxWidth : getCurrentWidth();
     const curD = isBoxPlacing ? boxDepth : getCurrentDepth();
 
-    // Čistý a stabilní snapping pro střed budovy
-    let snapX = Math.round(hitPoint.x / gridStep) * gridStep;
-    let snapZ = Math.round(hitPoint.z / gridStep) * gridStep;
+    let snapX = Math.round(hitPoint.x / curW) * curW;
+    let snapZ = Math.round(hitPoint.z / curD) * curD;
 
     const maxX = (gridWidth / 2) - (curW / 2);
     const maxZ = (gridHeight / 2) - (curD / 2);
@@ -897,13 +905,11 @@ function getGridCoordinatesFromMouse(event) {
 
 function getBoxBuildingCoordinates(start, end, w, d) {
     const coords = [];
-    const minX = Math.min(start.x, end.x);
-    const maxX = Math.max(start.x, end.x);
-    const minZ = Math.min(start.z, end.z);
-    const maxZ = Math.max(start.z, end.z);
+    const stepX = end.x >= start.x ? w : -w;
+    const stepZ = end.z >= start.z ? d : -d;
 
-    for (let x = minX; x <= maxX + 0.001; x += w) {
-        for (let z = minZ; z <= maxZ + 0.001; z += d) {
+    for (let x = start.x; stepX > 0 ? x <= end.x + 0.001 : x >= end.x - 0.001; x += stepX) {
+        for (let z = start.z; stepZ > 0 ? z <= end.z + 0.001 : z >= end.z - 0.001; z += stepZ) {
             coords.push({ x: Number(x.toFixed(2)), z: Number(z.toFixed(2)) });
         }
     }
@@ -1179,14 +1185,7 @@ window.addEventListener('wheel', (event) => {
 window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-    const rect = renderer.domElement.getBoundingClientRect();
-    const aspect = rect.width / rect.height;
-    camera.left = -d * aspect;
-    camera.right = d * aspect;
-    camera.top = d;
-    camera.bottom = -d;
-    camera.updateProjectionMatrix();
+    updateCameraAspect();
 });
 
 loadCurrentSlot();
