@@ -119,12 +119,9 @@ const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1
 camera.position.set(0, 120, 0);
 camera.lookAt(0, 0, 0);
 
-// === MŘÍŽKA A 1-JEDNOTKOVÉ SNAPOVÁNÍ PRO 4x4 VNITŘEK ===
+// === MŘÍŽKA S 4x4 VIZUÁLNÍMI ČTVERCI A 1-JEDNOTKOVÝM KROKEM ===
 const boardGroup = new THREE.Group();
-const visualTileSize = 4; // Vizuální velký čtverec
-const gridStep = 1;      // 1-unit krok pro přesné 4x4 umisťování
-const cols = gridWidth / visualTileSize;
-const rows = gridHeight / visualTileSize;
+const gridStep = 1; // 1-unit krok pro maximálně těsné skládání
 
 function createGroundTileTexture(isEven) {
     const canvas = document.createElement('canvas');
@@ -135,8 +132,8 @@ function createGroundTileTexture(isEven) {
     ctx.fillStyle = isEven ? '#2e6628' : '#255420';
     ctx.fillRect(0, 0, 256, 256);
 
-    ctx.strokeStyle = isEven ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.08)';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = isEven ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 4;
 
     const step = 256 / 4;
     for (let i = 1; i < 4; i++) {
@@ -159,15 +156,15 @@ function createGroundTileTexture(isEven) {
 
 const matGreen1 = new THREE.MeshBasicMaterial({ map: createGroundTileTexture(true) });
 const matGreen2 = new THREE.MeshBasicMaterial({ map: createGroundTileTexture(false) });
-const tileGeo = new THREE.PlaneGeometry(visualTileSize, visualTileSize);
+const tileGeo = new THREE.PlaneGeometry(4, 4);
 tileGeo.rotateX(-Math.PI / 2);
 
-for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
+for (let r = 0; r < gridHeight / 4; r++) {
+    for (let c = 0; c < gridWidth / 4; c++) {
         const isEven = (r + c) % 2 === 0;
         const tileMesh = new THREE.Mesh(tileGeo, isEven ? matGreen1 : matGreen2);
-        const x = -gridWidth / 2 + c * visualTileSize + visualTileSize / 2;
-        const z = -gridHeight / 2 + r * visualTileSize + visualTileSize / 2;
+        const x = -gridWidth / 2 + c * 4 + 2;
+        const z = -gridHeight / 2 + r * 4 + 2;
         tileMesh.position.set(x, -0.01, z);
         boardGroup.add(tileMesh);
     }
