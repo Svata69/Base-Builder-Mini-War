@@ -844,7 +844,6 @@ const selectionBox = document.getElementById('selection-box');
 function updateMousePosition(event) {
     if (!event) return;
     const rect = renderer.domElement.getBoundingClientRect();
-    // Opraveno: použití rozměrů samotného plátna a jeho reálného rectu na obrazovce
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 }
@@ -985,15 +984,19 @@ window.addEventListener('pointermove', (event) => {
     }
 
     if (isPanning) {
-        const deltaX = (event.clientX - startMouseX) * (1 / camera.zoom) * 0.2;
-        const deltaY = (event.clientY - startMouseY) * (1 / camera.zoom) * 0.2;
+        const rect = renderer.domElement.getBoundingClientRect();
+        const worldWidth = (camera.right - camera.left) / camera.zoom;
+        const worldHeight = (camera.top - camera.bottom) / camera.zoom;
 
-        if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) {
+        const deltaX = (event.clientX - startMouseX) * (worldWidth / rect.width);
+        const deltaY = (event.clientY - startMouseY) * (worldHeight / rect.height);
+
+        if (Math.abs(event.clientX - startMouseX) > 1 || Math.abs(event.clientY - startMouseY) > 1) {
             hasMovedMouse = true;
         }
 
         camera.position.x -= deltaX;
-        camera.position.z -= deltaY;
+        camera.position.z += deltaY;
 
         startMouseX = event.clientX;
         startMouseY = event.clientY;
