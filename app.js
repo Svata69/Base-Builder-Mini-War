@@ -237,6 +237,10 @@ let currentTextColor = '#ffffff';
 let canPlace = false;
 let isMouseDown = false;
 
+// Stav pro tažení řady (Drag-to-Line)
+let isLineBuilding = false;
+let lineStartCoord = null;
+
 const placedBuildings = [];
 let selectedBuildings = [];
 let copiedBuildingData = null;
@@ -319,6 +323,8 @@ function deselectBuilding() {
     currentName = null;
     previewGroup.visible = false;
     isMouseDown = false;
+    isLineBuilding = false;
+    lineStartCoord = null;
     document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
 }
 
@@ -828,6 +834,69 @@ let isSelecting = false;
 let selectStartX = 0, selectStartY = 0;
 const selectionBox = document.getElementById('selection-box');
 
+function getGridCoordinatesFromMouse(event) {
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(groundPlane);
+    if (intersects.length === 0) return null;
+
+    const intersect = intersects[0];
+    const curW = getCurrentWidth();
+    const curD = getCurrentDepth();
+
+    let posX = Math.floor(intersect.point.x + 0.5) + (curW % 2 === 0 ? 0 : 0.5);
+    let posZ = Math.floor(intersect.point.z + 0.5) + (curD % 2 === 0 ? 0 : 0.5);
+
+    return { x: posX, z: posZ };
+}
+
+function placeBuildingLine(start, end) {
+    const curW = getCurrentWidth();
+    const curD = getCurrentDepth();
+
+    const dx = Math.sign(end.x - start.x);
+    const dz = Math.sign(end.z - start.z);
+    const stepsX = Math.abs(end.x - start.x);
+    const stepsZ = Math.abs(end.z - start.z);
+    
+    const isHorizontal = stepsX >= stepsZ;
+    const maxSteps = isHorizontal ? stepsX : stepsZ;
+    const stepSize = isHorizontal ? curW : curD;
+
+    let placedAny = false;
+
+    for (let i = 0; i <= maxSteps; i += stepSize) {
+        let cx = isHorizontal ? start.x + (i * dx) : start.x;
+        let cz = isHorizontal ? start.z : start.z + (i * dz);
+
+        const maxX = (gridWidth / 2) - (curW / 2);
+        const maxZ = (gridHeight / 2) - (curD / 2);
+        cx = Math.max(-maxX, Math.min(maxX, cx));
+        cz = Math.max(-maxZ, Math.min(maxZ, cz));
+
+        if (!checkCollision(cx, cz, curW, curD)) {
+            const buildingGroup = createBuildingMesh(
+                currentName, curW, curD, currentColorStr, 
+                currentTextColor, currentRadius, currentCategory
+            );
+            buildingGroup.position.set(cx, 0, cz);
+            scene.add(buildingGroup);
+            placedBuildings.push(buildingGroup);
+            placedAny = true;
+        }
+    }
+
+    if (placedAny) {
+        recalculateStatueBoosts();
+        saveHistoryState();
+    }
+}
+
+function updateLinePreviewPosition(event) {
+    updatePreviewPosition();
+}
+
+function clearLinePreview() {}
+
 function updatePreviewPosition() {
     if (!currentName) {
         previewGroup.visible = false;
@@ -861,7 +930,7 @@ function updatePreviewPosition() {
             previewMat.color.setStyle(currentColorStr);
             canPlace = true;
 
-            if (isMouseDown) {
+            if (isMouseDown && !isLineBuilding) {
                 tryPlaceBuilding();
             }
         }
@@ -904,6 +973,11 @@ window.addEventListener('pointermove', (event) => {
         return;
     }
 
+    if (isLineBuilding && currentName) {
+        updateLinePreviewPosition(event);
+        return;
+    }
+
     updatePreviewPosition();
 });
 
@@ -928,13 +1002,22 @@ window.addEventListener('pointerdown', (event) => {
     if (event.button === 0) {
         isMouseDown = true;
 
+        if (currentName) {
+            const gridCoord = getGridCoordinatesFromMouse(event);
+            if (gridCoord) {
+                isLineBuilding = true;
+                lineStartCoord = gridCoord;
+            }
+            return;
+        }
+
         const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
         const intersects = raycaster.intersectObjects(buildingMeshes);
 
-        if (intersects.length > 0 && !currentName) {
+        if (intersects.length > 0) {
             const hitGroup = intersects[0].object.parent;
             selectPlacedBuilding(hitGroup, event.ctrlKey);
-        } else if (!currentName) {
+        } else {
             deselectAllPlaced();
         }
 
@@ -956,6 +1039,17 @@ window.addEventListener('pointerup', (event) => {
 
     if (event.button === 0) {
         isMouseDown = false;
+
+        if (isLineBuilding && currentName) {
+            isLineBuilding = false;
+            const endCoord = getGridCoordinatesFromMouse(event);
+            if (lineStartCoord && endCoord) {
+                placeBuildingLine(lineStartCoord, endCoord);
+            }
+            lineStartCoord = null;
+            clearLinePreview();
+            return;
+        }
 
         if (isSelecting) {
             isSelecting = false;
@@ -1028,10 +1122,5 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-}
-animate();
-
+// Inicializace po načtení
 loadCurrentSlot();
