@@ -5,24 +5,51 @@ if (uiElement) {
     uiElement.addEventListener('wheel', (e) => e.stopPropagation());
 }
 
-// === OBSLUHA TUTORIÁLU A TABŮ ===
+// === OBSLUHA TUTORIÁLU A TABŮ (S UNIVERZÁLNÍM NÁHRADNÍM TLAČÍTKEM) ===
 function closeTutorial() {
-    const tutorialElement = document.getElementById('tutorial') 
-                         || document.getElementById('instructions')
-                         || document.querySelector('.tutorial-overlay')
-                         || document.querySelector('.tutorial-box');
-    if (tutorialElement) {
-        tutorialElement.style.display = 'none';
-    }
+    // Skryje všechny možné kontejnery tutoriálu/návodu
+    const selectors = [
+        '#tutorial', '#instructions', '#controls-panel', '#help-panel', '#guide',
+        '.tutorial-overlay', '.tutorial-box', '.instructions', '.help-overlay', '.controls-info'
+    ];
+
+    selectors.forEach(selector => {
+        document.querySelectorAll(selector).forEach(el => {
+            el.style.display = 'none';
+        });
+    });
+
+    // Skryje i univerzální tlačítko
+    const fallbackBtn = document.getElementById('universal-close-btn');
+    if (fallbackBtn) fallbackBtn.style.display = 'none';
 }
 
+// Automatické přidání náhradního zavíracího tlačítka na obrazovku
 document.addEventListener('DOMContentLoaded', () => {
-    const closeBtn = document.getElementById('close-tutorial-btn') 
-                  || document.querySelector('.tutorial-close')
-                  || document.querySelector('.close-btn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeTutorial);
-    }
+    const fallbackBtn = document.createElement('button');
+    fallbackBtn.id = 'universal-close-btn';
+    fallbackBtn.innerHTML = '❌ Zavřít ovládání / tutoriál';
+    fallbackBtn.style.position = 'fixed';
+    fallbackBtn.style.top = '15px';
+    fallbackBtn.style.right = '15px';
+    fallbackBtn.style.zIndex = '999999';
+    fallbackBtn.style.padding = '10px 18px';
+    fallbackBtn.style.backgroundColor = '#e74c3c';
+    fallbackBtn.style.color = '#ffffff';
+    fallbackBtn.style.border = '2px solid #ffffff';
+    fallbackBtn.style.borderRadius = '8px';
+    fallbackBtn.style.fontWeight = 'bold';
+    fallbackBtn.style.fontSize = '14px';
+    fallbackBtn.style.cursor = 'pointer';
+    fallbackBtn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.5)';
+
+    fallbackBtn.addEventListener('click', closeTutorial);
+    document.body.appendChild(fallbackBtn);
+
+    // Navázání i na běžná tlačítka uvnitř HTML
+    document.querySelectorAll('#close-tutorial-btn, .tutorial-close, .close-btn, #tutorial-close').forEach(btn => {
+        btn.addEventListener('click', closeTutorial);
+    });
 });
 
 function switchUpgradeTab(tabBtn, targetId) {
@@ -776,9 +803,13 @@ window.addEventListener('keydown', (e) => {
     keysPressed[key] = true;
 
     if (e.key === 'r' || e.key === 'R') rotateBuilding();
-    if (e.key === 'Escape') { deselectBuilding(); deselectAllPlaced(); hideContextMenu(); }
+    if (e.key === 'Escape') { 
+        closeTutorial(); // ESC zavře okno tutoriálu/ovládání
+        deselectBuilding(); 
+        deselectAllPlaced(); 
+        hideContextMenu(); 
+    }
     
-    // OPRAVA MAZÁNÍ: Při zmáčknutí Delete se bezpečně odznačí aktivní stavba
     if (e.key === 'Delete') {
         deselectBuilding();
         deleteSelectedBuildings();
@@ -862,7 +893,6 @@ function updatePreviewPosition() {
             previewMat.color.setStyle(currentColorStr);
             canPlace = true;
 
-            // Roznášení s přitaženým levým tlačítkem
             if (isMouseDown) {
                 tryPlaceBuilding();
             }
@@ -874,7 +904,6 @@ window.addEventListener('pointermove', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-    // Multiselect drag
     if (isSelecting && selectionBox) {
         const currentX = event.clientX;
         const currentY = event.clientY;
@@ -914,7 +943,6 @@ window.addEventListener('pointerdown', (event) => {
     if (event.clientX > window.innerWidth - 320 && event.clientY < 600) return;
     hideContextMenu();
 
-    // Shift + LMB = Multiselect box
     if (event.button === 0 && event.shiftKey) {
         isSelecting = true;
         selectStartX = event.clientX;
@@ -927,7 +955,6 @@ window.addEventListener('pointerdown', (event) => {
         return;
     }
 
-    // LMB Stavění / Výběr
     if (event.button === 0) {
         isMouseDown = true;
         
@@ -951,7 +978,6 @@ window.addEventListener('pointerdown', (event) => {
         updatePreviewPosition();
     }
 
-    // RMB nebo MMB = Pan Kamery
     if (event.button === 2 || event.button === 1) {
         isPanning = true;
         startMouseX = event.clientX;
@@ -964,7 +990,6 @@ window.addEventListener('pointerup', (event) => {
     if (event.button === 0) {
         isMouseDown = false;
 
-        // Dokončení multiselect dragu
         if (isSelecting) {
             isSelecting = false;
             if (selectionBox) selectionBox.style.display = 'none';
@@ -992,16 +1017,13 @@ window.addEventListener('pointerup', (event) => {
 
     raycaster.setFromCamera(mouse, camera);
 
-    // OPRAVA PRAVÉHO TLAČÍTKA:
     if (event.button === 2) {
         if (!hasMovedMouse) {
-            // Pokud stavíme budovu, pravé tlačítko storno/zruší stavění
             if (currentName) {
                 deselectBuilding();
                 return;
             }
 
-            // Pokud nestavíme, zkontrolujeme kliknutí na označenou budovu
             const buildingMeshes = placedBuildings.map(b => b.userData.mainMesh);
             const intersects = raycaster.intersectObjects(buildingMeshes);
 
@@ -1040,12 +1062,10 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Zajištění aktualizace renderovací smyčky scény
 function animate() {
     requestAnimationFrame(animate);
     renderer.render(scene, camera);
 }
 animate();
 
-// Načtení počátečních dat
 loadCurrentSlot();
