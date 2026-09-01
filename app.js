@@ -69,7 +69,7 @@ document.addEventListener('click', (e) => {
 
 function switchUpgradeTab(tabBtn, targetId) {
     const container = tabBtn.closest('.upgrade-container');
-    if(!container) return;
+    if (!container) return;
     container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     tabBtn.classList.add('active');
 
@@ -112,6 +112,7 @@ let d = 90;
 const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
 camera.position.set(0, 120, 0);
 camera.lookAt(0, 0, 0);
+camera.updateMatrixWorld();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -837,12 +838,15 @@ let isSelecting = false;
 let selectStartX = 0, selectStartY = 0;
 const selectionBox = document.getElementById('selection-box');
 
-// === ZUŠLECHŤOVANÝ PŘEPOČET SOUŘADNIC MYŠI A KAMERY ===
+function updateMousePosition(event) {
+    if (!event) return;
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+}
+
+// === PŘESNÝ PŘEPOČET SOUŘADNIC ===
 function getGridCoordinatesFromMouse(event) {
-    if (event) {
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-    }
+    if (event) updateMousePosition(event);
 
     camera.updateMatrixWorld();
     raycaster.setFromCamera(mouse, camera);
@@ -855,12 +859,9 @@ function getGridCoordinatesFromMouse(event) {
     const curW = getCurrentWidth();
     const curD = getCurrentDepth();
 
-    // Přesný výpočet dlaždic mřížky (offset -gridWidth/2)
-    let col = Math.floor((hit.x + gridWidth / 2) / tileSize);
-    let row = Math.floor((hit.z + gridHeight / 2) / tileSize);
-
-    let posX = -gridWidth / 2 + col * tileSize + curW / 2;
-    let posZ = -gridHeight / 2 + row * tileSize + curD / 2;
+    // Přesné zarovnání na mřížku
+    let posX = Math.floor((hit.x + gridWidth / 2) / tileSize) * tileSize - gridWidth / 2 + curW / 2;
+    let posZ = Math.floor((hit.z + gridHeight / 2) / tileSize) * tileSize - gridHeight / 2 + curD / 2;
 
     const maxX = (gridWidth / 2) - (curW / 2);
     const maxZ = (gridHeight / 2) - (curD / 2);
@@ -966,8 +967,7 @@ function updatePreviewPosition(event) {
 }
 
 window.addEventListener('pointermove', (event) => {
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    updateMousePosition(event);
 
     if (isSelecting && selectionBox) {
         const currentX = event.clientX;
@@ -1016,6 +1016,7 @@ window.addEventListener('pointerdown', (event) => {
     if (event.target.closest('#context-menu')) return;
     if (event.clientX > window.innerWidth - 320 && event.clientY < 600) return;
     
+    updateMousePosition(event);
     hideContextMenu();
 
     if (event.button === 0 && event.shiftKey) {
@@ -1070,6 +1071,7 @@ window.addEventListener('pointerdown', (event) => {
 
 window.addEventListener('pointerup', (event) => {
     if (event.target.closest('#context-menu')) return;
+    updateMousePosition(event);
 
     if (event.button === 0) {
         isMouseDown = false;
