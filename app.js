@@ -289,6 +289,11 @@ function createRadiusRing(radius) {
     return line;
 }
 
+// Funkce pro přímý výběr Anomaly Facility z kódové logiky nebo tlačítka v HTML
+function selectAnomalyFacility(btn) {
+    selectBuilding('Anomaly Facility', 14, 14, '#ffaa00', '#ffffff', 0, 'Factory', btn);
+}
+
 // === PROMĚNNÉ STAVU ===
 let currentName = null;
 let baseWidth = 8;
@@ -891,7 +896,6 @@ function getGridCoordinatesFromMouse(event) {
     const curW = isBoxPlacing ? boxWidth : getCurrentWidth();
     const curD = isBoxPlacing ? boxDepth : getCurrentDepth();
 
-    // VŽDY SNAPUJE NA 1 JEDNOTKU (čtvereček v 4x4), nezávisle na velikosti budovy
     let snapX = Math.round(hitPoint.x / gridStep) * gridStep;
     let snapZ = Math.round(hitPoint.z / gridStep) * gridStep;
 
