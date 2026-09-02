@@ -289,7 +289,6 @@ function createRadiusRing(radius) {
     return line;
 }
 
-// Funkce pro přímý výběr Anomaly Facility z kódové logiky nebo tlačítka v HTML
 function selectAnomalyFacility(btn) {
     selectBuilding('Anomaly Facility', 14, 14, '#ffaa00', '#ffffff', 0, 'Factory', btn);
 }
@@ -886,6 +885,7 @@ function updateMousePosition(event) {
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 }
 
+// OPRAVENÁ LOGIKA ZAROVNÁNÍ NA MŘÍŽKU PODLE SUDÝCH / LICHÝCH ROZMĚRŮ
 function getGridCoordinatesFromMouse(event) {
     if (event) updateMousePosition(event);
 
@@ -896,8 +896,12 @@ function getGridCoordinatesFromMouse(event) {
     const curW = isBoxPlacing ? boxWidth : getCurrentWidth();
     const curD = isBoxPlacing ? boxDepth : getCurrentDepth();
 
-    let snapX = Math.round(hitPoint.x / gridStep) * gridStep;
-    let snapZ = Math.round(hitPoint.z / gridStep) * gridStep;
+    // Dynamický offset: Liché rozměry potřebují posun o 0.5, sudé rozměry leží na celých číslech
+    const offsetX = (curW % 2 !== 0) ? 0.5 : 0;
+    const offsetZ = (curD % 2 !== 0) ? 0.5 : 0;
+
+    let snapX = Math.round(hitPoint.x - offsetX) + offsetX;
+    let snapZ = Math.round(hitPoint.z - offsetZ) + offsetZ;
 
     const maxX = (gridWidth / 2) - (curW / 2);
     const maxZ = (gridHeight / 2) - (curD / 2);
