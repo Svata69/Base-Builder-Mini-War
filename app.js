@@ -290,13 +290,13 @@ function createRadiusRing(radius) {
 }
 
 function selectAnomalyFacility(btn) {
-    selectBuilding('Anomaly Facility', 14, 14, '#ffaa00', '#ffffff', 0, 'Factory', btn);
+    selectBuilding('Anomaly Facility', 17, 16, '#ffaa00', '#ffffff', 0, 'Factory', btn);
 }
 
 // === PROMĚNNÉ STAVU ===
 let currentName = null;
-let baseWidth = 8;
-let baseDepth = 8;
+let baseWidth = 17;
+let baseDepth = 16;
 let currentRadius = 0;
 let currentCategory = 'Houses';
 let isRotated = false;
@@ -885,7 +885,7 @@ function updateMousePosition(event) {
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 }
 
-// OPRAVENÁ LOGIKA ZAROVNÁNÍ NA MŘÍŽKU PODLE SUDÝCH / LICHÝCH ROZMĚRŮ
+// UNIVERZÁLNÍ ZAROVNÁNÍ NA MŘÍŽKU BEZ OHLEDU NA LICHÉ / SUDÉ ROZMĚRY (17x16, 10x11, 14x14)
 function getGridCoordinatesFromMouse(event) {
     if (event) updateMousePosition(event);
 
@@ -896,12 +896,10 @@ function getGridCoordinatesFromMouse(event) {
     const curW = isBoxPlacing ? boxWidth : getCurrentWidth();
     const curD = isBoxPlacing ? boxDepth : getCurrentDepth();
 
-    // Dynamický offset: Liché rozměry potřebují posun o 0.5, sudé rozměry leží na celých číslech
-    const offsetX = (curW % 2 !== 0) ? 0.5 : 0;
-    const offsetZ = (curD % 2 !== 0) ? 0.5 : 0;
-
-    let snapX = Math.round(hitPoint.x - offsetX) + offsetX;
-    let snapZ = Math.round(hitPoint.z - offsetZ) + offsetZ;
+    // Vzorec spočítá pozici levého/horního okraje na celou čáru mřížky a přičte půlku rozměru zpět.
+    // Tím jsou VŠECHNY okraje budovy (i při rozměru 17x16) vždy v 100% zákrytu s čárami mřížky.
+    let snapX = Math.floor(hitPoint.x - curW / 2) + curW / 2;
+    let snapZ = Math.floor(hitPoint.z - curD / 2) + curD / 2;
 
     const maxX = (gridWidth / 2) - (curW / 2);
     const maxZ = (gridHeight / 2) - (curD / 2);
